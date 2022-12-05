@@ -30,48 +30,8 @@ import profile
 
 # ----------------------------------------------------------------------------
 
-
-def splines_df():
-    files = []
-    for file in os.scandir('aerofoil_dat'):
-        if file.name.endswith('.dat'):
-            files.append(file.path)
-    files = sorted(files)
-
-    foil_names = []
-    foil_xs = []
-    foil_ys_up = []
-    foil_ys_low = []
-    foil_splines = []
-    for file in files:
-        try:
-            p = profile.Profile(file, points=51, prnt=False)
-
-            name = p.name
-            foil_names.append(name)
-
-            spline_funcs = p.spline_funcs
-            splinef_up = spline_funcs[0]
-            splinef_low = spline_funcs[1]
-            splines = p.splines
-
-            foil_splines.append(splines)
-            foil_xs.append(splinef_up[0])
-            foil_ys_up.append(splinef_up[1])
-            foil_ys_low.append(splinef_low[1])
-        except:
-            foil_names.append(file)
-            foil_splines.append('Error')
-            foil_xs.append('Error')
-            foil_ys_up.append('Error')
-            foil_ys_low.append('Error')
-
-    aerofoil_profiles = {'name': foil_names, 'Xs': foil_xs, 'ys_up': foil_ys_up, 'ys_low': foil_ys_low,
-                         'splines': foil_splines}
-    aerofoil_profiles_df = pd.DataFrame(aerofoil_profiles)
-    aerofoil_profiles_df = aerofoil_profiles_df
-
-    return aerofoil_profiles_df
+# Create list of profile objects
+profiles = profile.create_profiles()
 
 
 def plot_profile(df, indx, x_val=None):
@@ -79,15 +39,15 @@ def plot_profile(df, indx, x_val=None):
 
     plt.figure(1)
     plt.title(df.name[indx])
-    plt.plot(df.Xs[indx], df.ys_low[indx])
-    plt.plot(df.Xs[indx], df.ys_up[indx])
-    plt.ylim([min(df.ys_low[indx]) - 0.15, max(df.ys_up[indx]) + 0.15])
+    plt.plot(df.x[indx], df.y_low[indx])
+    plt.plot(df.x[indx], df.y_high[indx])
+    plt.ylim([min(df.y_low[indx]) - 0.15, max(df.y_high[indx]) + 0.15])
     plt.grid()
 
     if x_val:
         print(f' and evaluating y coordinates at x={x_val}...')
 
-        splines = df.splines[indx]
+        splines = df.spline[indx]
         spline_up = splines[0]
         spline_low = splines[1]
 
@@ -103,10 +63,10 @@ def plot_profile(df, indx, x_val=None):
     plt.show()
 
 
-aerofoils_df = splines_df()
+aerofoils_df = profile.Profile.dataframe
 # plot_profile(aerofoils_df, 4, x_val=0.38)
 # aerofoils_df
 
-worked = aerofoils_df[aerofoils_df['Xs'] != 'Error'].reset_index()
+worked = aerofoils_df[aerofoils_df['x'] != 'Error'].reset_index()
 plot_profile(worked, 72, x_val=0.36)
 # len(worked.name.tolist()), worked.name.tolist()

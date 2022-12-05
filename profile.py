@@ -2,12 +2,25 @@ import numpy as np
 import math
 import scipy.interpolate as interp
 import pandas as pd
+import os
+
+
+def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
+    """TODO: implement"""
+
+    profiles = []
+    for file in os.scandir(directory):
+        if file.name.endswith('.' + ext):
+            profiles.append(Profile(file, points=points, prnt=prnt))
+
+    return profiles
 
 
 class Profile:
-    """
-    Doc String
-    """
+    """ TODO: add docstring"""
+
+    # Static variables
+    dataframe = pd.DataFrame(columns=['name', 'x', 'y_high', 'y_low', 'spline'])
 
     def __init__(self, file, points=51, x_val=None, prnt=False):
         self.file = file
@@ -26,17 +39,40 @@ class Profile:
         self.spline_funcs = None
 
         if prnt:
-            print('Achieving profile coordinates...')
-            self.coord_profile()
-            print(f' {self.name} Done. Creating x-coordinate cosine distribution with {points} points...')
-            self.x_distribution()
-            print(f' Done. Interpolating upper and lower profile splines at coordinates...')
-            self.get_spline()
-            print(' Done.')
+            try:
+                print('Achieving profile coordinates...')
+                self.coord_profile()
+                print(f' {self.name} Done. Creating x-coordinate cosine distribution with {points} points...')
+                self.x_distribution()
+                print(f' Done. Interpolating upper and lower profile splines at coordinates...')
+                self.get_spline()
+                print('Updating static dataframe...')
+                self.update_dataframe()
+                print(' Done.')
+            except:
+                new_row = pd.DataFrame({'name': [self.file], 'x': 'Error', 'y_high': 'Error', 'y_low': 'Error',
+                                        'spline': 'Error'})
+                Profile.dataframe = pd.concat([Profile.dataframe, new_row])
+                return
         else:
-            self.coord_profile()
-            self.x_distribution()
-            self.get_spline()
+            try:
+                self.coord_profile()
+                self.x_distribution()
+                self.get_spline()
+                self.update_dataframe()
+            except:
+                new_row = pd.DataFrame({'name': [self.file], 'x': 'Error', 'y_high': 'Error', 'y_low': 'Error',
+                                        'spline': 'Error'})
+                Profile.dataframe = pd.concat([Profile.dataframe, new_row])
+                return
+
+    def update_dataframe(self):
+        splinef_up = self.spline_funcs[0]
+        splinef_low = self.spline_funcs[1]
+
+        new_row = pd.DataFrame({'name': [self.name], 'x': [splinef_up[0]], 'y_high': [splinef_up[1]],
+                                'y_low': [splinef_low[1]], 'spline': [self.splines]})
+        Profile.dataframe = pd.concat([Profile.dataframe, new_row])
 
     def coord_profile(self):
         with open(self.file, "r") as f:
