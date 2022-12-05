@@ -1,1 +1,1 @@
-# Turbulence-Aerofoil-Model
+# Turbulence Aerofoil Model
