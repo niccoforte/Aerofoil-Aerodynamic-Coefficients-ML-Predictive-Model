@@ -39,28 +39,21 @@ class Profile:
             self.get_spline()
 
     def coord_profile(self):
-        f = open(self.file, "r")
-        lines = f.readlines()
-        dat = []
-        empty_line_indxs = []
-        indx = 0
-        for line in lines:
-            indx += 1
-            line = line.strip()
-            if line == '': empty_line_indxs.append(indx - 1)
-            dat.append(line)
+        with open(self.file, "r") as f:
+            lines = f.readlines()
+            dat = []
+            empty_line_indxs = []
+            indx = 0
+            for line in lines:
+                indx += 1
+                line = line.strip()
+                if line == '': empty_line_indxs.append(indx - 1)
+                dat.append(line)
 
-        if dat[0][-8:] == ' AIRFOIL':
-            name = dat[0][0:-8]
-        else:
-            name = dat[0]
-
-        #        if len(empty_line_indxs) == 0:
-        #            f = open(self.file, 'w')
-        #
-        #
-        #        else:
-        f.close()
+            if dat[0][-8:] == ' AIRFOIL':
+                name = dat[0][0:-8]
+            else:
+                name = dat[0]
 
         coords_up = dat[empty_line_indxs[0] + 1:empty_line_indxs[1]]
         xs_up = [float(coord[:7]) for coord in coords_up]
