@@ -22,8 +22,8 @@ def plot_profile(df, indx, x_val=None):
     plt.figure(1)
     plt.title(df.name[indx])
     plt.plot(df.x[indx], df.y_low[indx])
-    plt.plot(df.x[indx], df.y_high[indx])
-    plt.ylim([min(df.y_low[indx]) - 0.15, max(df.y_high[indx]) + 0.15])
+    plt.plot(df.x[indx], df.y_up[indx])
+    plt.ylim([min(df.y_low[indx]) - 0.15, max(df.y_up[indx]) + 0.15])
     plt.grid()
 
     if x_val:
@@ -51,5 +51,5 @@ def plot_profile(df, indx, x_val=None):
 profiles, aerofoils_df = profile.create_profiles()
 
 worked = aerofoils_df[aerofoils_df['x'] != 'Error'].reset_index()
-plot_profile(worked, 72, x_val=0.36)
-# len(worked.name.tolist()), worked.name.tolist()
+plot_profile(worked, 204, x_val=0.36)
+# print(len(worked.name.tolist()), worked.name.tolist())

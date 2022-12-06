@@ -42,7 +42,7 @@ class Profile:
     """
 
     # Static dataframe variable
-    dataframe = pd.DataFrame(columns=['name', 'x', 'y_high', 'y_low', 'spline'])
+    dataframe = pd.DataFrame(columns=['name', 'x', 'y_up', 'y_low', 'spline'])
 
     def __init__(self, file, points=51, x_val=None, prnt=False):
         self.file = file
@@ -72,7 +72,7 @@ class Profile:
                 self.update_dataframe()
                 print(' Done.')
             except:
-                new_row = pd.DataFrame({'name': [self.file], 'x': 'Error', 'y_high': 'Error', 'y_low': 'Error',
+                new_row = pd.DataFrame({'name': [self.file], 'x': 'Error', 'y_up': 'Error', 'y_low': 'Error',
                                         'spline': 'Error'})
                 Profile.dataframe = pd.concat([Profile.dataframe, new_row])
                 return
@@ -83,7 +83,7 @@ class Profile:
                 self.get_spline()
                 self.update_dataframe()
             except:
-                new_row = pd.DataFrame({'name': [self.file], 'x': 'Error', 'y_high': 'Error', 'y_low': 'Error',
+                new_row = pd.DataFrame({'name': [self.file], 'x': 'Error', 'y_up': 'Error', 'y_low': 'Error',
                                         'spline': 'Error'})
                 Profile.dataframe = pd.concat([Profile.dataframe, new_row])
                 return
@@ -92,11 +92,12 @@ class Profile:
         splinef_up = self.spline_funcs[0]
         splinef_low = self.spline_funcs[1]
 
-        new_row = pd.DataFrame({'name': [self.name], 'x': [splinef_up[0]], 'y_high': [splinef_up[1]],
+        new_row = pd.DataFrame({'name': [self.name], 'x': [splinef_up[0]], 'y_up': [splinef_up[1]],
                                 'y_low': [splinef_low[1]], 'spline': [self.splines]})
         Profile.dataframe = pd.concat([Profile.dataframe, new_row])
 
     def coord_profile(self):
+        # Read aerofoil .dat file into dat list
         with open(self.file, "r") as f:
             lines = f.readlines()
             dat = []
@@ -108,22 +109,29 @@ class Profile:
                 if line == '': empty_line_indxs.append(indx - 1)
                 dat.append(line)
 
-            if dat[0][-8:] == ' AIRFOIL':
-                name = dat[0][0:-8]
-            else:
-                name = dat[0]
+        # Set aerofoil name
+        if dat[0][-8:] == ' AIRFOIL': name = dat[0][0:-8]
+        else: name = dat[0]
+        dat = dat[empty_line_indxs[0] + 1:]
 
-        coords_up = dat[empty_line_indxs[0] + 1:empty_line_indxs[1]]
-        xs_up = [float(coord[:7]) for coord in coords_up]
-        ys_up = [float(coord[-10:]) for coord in coords_up]
+        # Float dat list
+        dat_flt = []
+        for line in dat:
+            line = line.split()
+            line = [float(pt) for pt in line]
+            dat_flt.append(line)
+
+        coords_up = dat_flt[:empty_line_indxs[1] - empty_line_indxs[0] - 1]
+        xs_up = [coord[0] for coord in coords_up]
+        ys_up = [coord[1] for coord in coords_up]
         sorter = pd.DataFrame({'x': xs_up, 'y': ys_up})
         sorter = sorter.sort_values('x')
         xs_up = list(sorter.x)
         ys_up = list(sorter.y)
 
-        coords_low = dat[empty_line_indxs[1] + 1:]
-        xs_low = [float(coord[:7]) for coord in coords_low]
-        ys_low = [float(coord[-10:]) for coord in coords_low]
+        coords_low = dat_flt[empty_line_indxs[1] - empty_line_indxs[0]:]
+        xs_low = [coord[0] for coord in coords_low]
+        ys_low = [coord[1] for coord in coords_low]
         sorter = pd.DataFrame({'x': xs_low, 'y': ys_low})
         sorter = sorter.sort_values('x')
         xs_low = list(sorter.x)
@@ -131,6 +139,9 @@ class Profile:
 
         coords_up = [xs_up, ys_up]
         coords_low = [xs_low, ys_low]
+
+        # Change duplicates in xs
+        # TODO
 
         xs_low_rev = list(xs_low)
         xs_low_rev.reverse()
