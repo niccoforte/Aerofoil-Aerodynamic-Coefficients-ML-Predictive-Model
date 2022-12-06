@@ -3,9 +3,6 @@ import pandas as pd
 
 import profile
 
-# Create list of profile objects
-profiles = profile.create_profiles()
-
 
 def plot_profile(df, indx, x_val=None):
     """Plots the profile of a given aerofoil.
@@ -48,9 +45,11 @@ def plot_profile(df, indx, x_val=None):
     plt.show()
 
 
-aerofoils_df = profile.Profile.dataframe
-# plot_profile(aerofoils_df, 4, x_val=0.38)
-# aerofoils_df
+# ------------------------ Start Main ------------------------
+
+# Create list of profile objects
+profiles, aerofoils_df = profile.create_profiles()
+# aerofoils_df = profile.Profile.dataframe
 
 worked = aerofoils_df[aerofoils_df['x'] != 'Error'].reset_index()
 plot_profile(worked, 72, x_val=0.36)

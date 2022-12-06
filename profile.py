@@ -21,7 +21,7 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
 
     Returns
     -------
-    list of Profile
+    list of Profile, pd.DataFrame
     """
 
     profiles = []
@@ -29,7 +29,7 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
         if file.name.endswith('.' + ext):
             profiles.append(Profile(file, points=points, prnt=prnt))
 
-    return profiles
+    return profiles, Profile.dataframe
 
 
 class Profile:
