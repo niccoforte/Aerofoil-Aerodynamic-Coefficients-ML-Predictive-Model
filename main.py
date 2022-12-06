@@ -49,7 +49,6 @@ def plot_profile(df, indx, x_val=None):
 
 # Create list of profile objects
 profiles, aerofoils_df = profile.create_profiles()
-# aerofoils_df = profile.Profile.dataframe
 
 worked = aerofoils_df[aerofoils_df['x'] != 'Error'].reset_index()
 plot_profile(worked, 72, x_val=0.36)
