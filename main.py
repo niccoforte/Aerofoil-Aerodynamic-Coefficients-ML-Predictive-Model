@@ -3,6 +3,8 @@ import pandas as pd
 
 import profile
 
+# Download aerofoil .dat files to 'aerofoil_dat' directory
+# profile.get_aerofoils()
 
 # Create list and dataframe of profile objects
 profiles, aerofoils_df = profile.create_profiles()

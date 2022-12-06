@@ -4,6 +4,27 @@ import scipy.interpolate as interp
 from matplotlib import pyplot as plt
 import pandas as pd
 import os
+from bs4 import BeautifulSoup
+import re
+import urllib.request as urllib2
+
+
+def get_aerofoils():
+    baseFlpth = "https://m-selig.ae.illinois.edu/ads/"
+
+    html_page = urllib2.urlopen("https://m-selig.ae.illinois.edu/ads/coord_database.html")
+    soup = BeautifulSoup(html_page,'lxml')
+
+    ind = 1
+    #links = []
+    for link in soup.find_all('a',attrs={'href': re.compile('\.dat', re.IGNORECASE)}):
+        #links.append(link.get('href'))
+
+        fullfilename = os.path.join('aerofoil_dat', link.get('href').rsplit('/',1)[-1])
+        urllib2.urlretrieve(baseFlpth+link.get('href'), fullfilename)
+        #print("Saving file %i" %ind)
+        ind = ind + 1
+    print(f'{ind} files copied and saved to ~/Desktop/Code/Dissertation/aerfoil_dat')
 
 
 def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
