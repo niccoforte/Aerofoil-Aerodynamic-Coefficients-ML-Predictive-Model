@@ -148,29 +148,20 @@ class Profile:
         return name, coords_up, coords_low, x, y
 
     def x_distribution(self):
-        points = self.points
-
-        spline_xs_lin = np.linspace(0.0, math.pi, points)
+        spline_xs_lin = np.linspace(0.0, math.pi, self.points)
         spline_xs = 0.5 * (1 - np.cos(spline_xs_lin))
 
         self.spline_xs = spline_xs
         return spline_xs
 
     def get_spline(self):
-        name = self.name
-        coords_up = self.coords_up
-        coords_low = self.coords_low
-        x = self.x
-        y = self.y
-        spline_xs = self.spline_xs
+        spline_up = interp.InterpolatedUnivariateSpline(self.coords_up[0], self.coords_up[1])
+        yfunc_up = spline_up(self.spline_xs)
+        spline_func_up = [self.spline_xs.round(5), yfunc_up.round(5)]
 
-        spline_up = interp.InterpolatedUnivariateSpline(coords_up[0], coords_up[1])
-        yfunc_up = spline_up(spline_xs)
-        spline_func_up = [spline_xs.round(5), yfunc_up.round(5)]
-
-        spline_low = interp.InterpolatedUnivariateSpline(coords_low[0], coords_low[1])
-        yfunc_low = spline_low(spline_xs)
-        spline_func_low = [spline_xs.round(5), yfunc_low.round(5)]
+        spline_low = interp.InterpolatedUnivariateSpline(self.coords_low[0], self.coords_low[1])
+        yfunc_low = spline_low(self.spline_xs)
+        spline_func_low = [self.spline_xs.round(5), yfunc_low.round(5)]
 
         splines = [spline_up, spline_low]
         spline_funcs = [spline_func_up, spline_func_low]
