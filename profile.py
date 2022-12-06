@@ -6,7 +6,23 @@ import os
 
 
 def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
-    """TODO: implement"""
+    """Generates a list of profile objects from a directory containing given files.
+
+    Parameters
+    ----------
+    directory : str
+        Directory in the project workspace that contains the files to be upoaded.
+    ext : str
+        Extension of the files.
+    points : int
+        Points at which to evaluate the splines of the aerofoils.
+    prnt : bool
+        Print log as profile objects are created.
+
+    Returns
+    -------
+    list of Profile
+    """
 
     profiles = []
     for file in os.scandir(directory):
@@ -17,9 +33,15 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
 
 
 class Profile:
-    """ TODO: add docstring"""
+    """Represents the profile of an aerofoil given from a set of datapoints. Fits a cubic spline and re-evaluates the
+    datapoints as necessary for precision and consistency.
 
-    # Static variables
+    Attributes
+    ----------
+    TODO: add attribute documentation
+    """
+
+    # Static dataframe variable
     dataframe = pd.DataFrame(columns=['name', 'x', 'y_high', 'y_low', 'spline'])
 
     def __init__(self, file, points=51, x_val=None, prnt=False):
@@ -109,7 +131,6 @@ class Profile:
 
         coords_up = [xs_up, ys_up]
         coords_low = [xs_low, ys_low]
-        # print(coords_low[0])
 
         xs_low_rev = list(xs_low)
         xs_low_rev.reverse()
@@ -118,16 +139,12 @@ class Profile:
         ys_low_rev.reverse()
         y = ys_up + ys_low_rev
 
-        #        plt.figure(0)
-        #        plt.plot(x,y)
-        #        plt.ylim([min(y)-0.15, max(y)+0.15])
-        #        plt.title(name)
-
         self.name = name
         self.coords_up = coords_up
         self.coords_low = coords_low
         self.x = x
         self.y = y
+
         return name, coords_up, coords_low, x, y
 
     def x_distribution(self):
@@ -155,19 +172,10 @@ class Profile:
         yfunc_low = spline_low(spline_xs)
         spline_func_low = [spline_xs.round(5), yfunc_low.round(5)]
 
-        #        plt.figure(1)
-        #        plt.title(name)
-        #        # plt.plot(coords_up[0],coords_up[1])
-        #        # plt.plot(coords_low[0],coords_low[1])
-        #        # plt.scatter(x,y, s=1)
-        #        plt.ylim([min(y)-0.15, max(y)+0.15])
-        #        plt.grid()
-        #        plt.plot(spline_xs, yfunc_up)
-        #        plt.plot(spline_xs, yfunc_low)
-
         splines = [spline_up, spline_low]
         spline_funcs = [spline_func_up, spline_func_low]
 
         self.spline_funcs = spline_funcs
         self.splines = splines
+
         return splines, spline_funcs

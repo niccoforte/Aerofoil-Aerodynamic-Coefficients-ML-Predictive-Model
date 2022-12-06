@@ -1,40 +1,25 @@
 from matplotlib import pyplot as plt
 import pandas as pd
-import os
 
 import profile
-
-
-# -------------------- Zoomed in inspection of tip and tail ------------------
-
-#        plt.figure(2)
-#        #plt.plot(x,y)
-#        plt.title(name)
-#        plt.scatter(x,y, s=10)
-#        plt.ylim(-0.01, 0.01)
-#        plt.xlim(0.95, 1.05)
-#
-#        plt.plot(xfunc_up, yfunc_up)
-#        plt.plot(xfunc_low, yfunc_low)
-#
-#
-#        plt.figure(3)
-#        #plt.plot(x,y)
-#        plt.title(name)
-#        plt.scatter(x,y, s=10)
-#        plt.ylim(-0.02, 0.02)
-#        plt.xlim(-0.05, 0.05)
-#
-#        plt.plot(xfunc_up, yfunc_up)
-#        plt.plot(xfunc_low, yfunc_low)
-
-# ----------------------------------------------------------------------------
 
 # Create list of profile objects
 profiles = profile.create_profiles()
 
 
 def plot_profile(df, indx, x_val=None):
+    """Plots the profile of a given aerofoil.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataframe containing the aerofoils' data.
+    indx : int
+        Index of the aerofoil to be plotted.
+    x_val : float, optional
+        x-value to be plotted along with the aerofoil.
+    """
+
     print(f'Plotting {df.name[indx]} Aerofoil...')
 
     plt.figure(1)
