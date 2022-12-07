@@ -17,6 +17,7 @@ def get_aerofoils():
 
     ind = 1
     #links = []
+    print('Staring download...')
     for link in soup.find_all('a',attrs={'href': re.compile('\.dat', re.IGNORECASE)}):
         #links.append(link.get('href'))
 
@@ -24,7 +25,7 @@ def get_aerofoils():
         urllib2.urlretrieve(baseFlpth+link.get('href'), fullfilename)
         #print("Saving file %i" %ind)
         ind = ind + 1
-    print(f'{ind} files copied and saved to ~/Desktop/Code/Dissertation/aerfoil_dat')
+    print(f' Done. {ind} files copied and saved to ~/Desktop/Code/Dissertation/aerfoil_dat.')
 
 
 def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
@@ -46,6 +47,7 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
     list of Profile, pd.DataFrame
     """
 
+    Profile.dataframe = pd.DataFrame(columns=['name', 'file', 'x', 'y_up', 'y_low', 'spline'])
     profiles = []
     for file in os.scandir(directory):
         if file.name.endswith('.' + ext):
@@ -54,7 +56,7 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
     return profiles, Profile.dataframe
 
 
-def plot_profile(df, indx, x_val=None):
+def plot_profile(df, indx, x_val=None, pltfig=1):
     """Plots the profile of a given aerofoil.
 
     Parameters
@@ -69,7 +71,7 @@ def plot_profile(df, indx, x_val=None):
 
     print(f'Plotting {df.name[indx]} Aerofoil...')
 
-    plt.figure(1)
+    plt.figure(pltfig)
     plt.title(df.name[indx])
     plt.plot(df.x[indx], df.y_low[indx])
     plt.plot(df.x[indx], df.y_up[indx])
@@ -87,7 +89,7 @@ def plot_profile(df, indx, x_val=None):
         y_val_low = spline_low(x_val)
         print(f'  y_up = {y_val_up.round(5)} and y_low = {y_val_low.round(5)}.')
 
-        plt.figure(1)
+        plt.figure(pltfig)
         plt.plot(x_val, y_val_up, marker='o', color='orangered')
         plt.plot(x_val, y_val_low, marker='o', color='orangered')
         plt.axvline(x=x_val, color='orangered')
@@ -104,13 +106,12 @@ class Profile:
     TODO: add attribute documentation
     """
 
-    # Static dataframe variable
+    # Static dataframe variabled
     dataframe = pd.DataFrame(columns=['name', 'x', 'y_up', 'y_low', 'spline'])
 
-    def __init__(self, file, points=51, x_val=None, prnt=False):
+    def __init__(self, file, points=51, prnt=False):
         self.file = file
         self.points = points
-        self.x_val = None
 
         self.name = None
         self.coords_up = None
@@ -129,14 +130,15 @@ class Profile:
                 self.coord_profile()
                 print(f' {self.name} Done. Creating x-coordinate cosine distribution with {points} points...')
                 self.x_distribution()
-                print(f' Done. Interpolating upper and lower profile splines at coordinates...')
+                print(f'  Done. Interpolating upper and lower profile splines at coordinates...')
                 self.get_spline()
-                print('Updating static dataframe...')
+                print('   Updating static dataframe...')
                 self.update_dataframe()
-                print(' Done.')
-            except:
-                new_row = pd.DataFrame({'name': [self.file], 'x': 'Error', 'y_up': 'Error', 'y_low': 'Error',
-                                        'spline': 'Error'})
+                print('    Done.')
+            except Exception as e:
+                print(e)
+                new_row = pd.DataFrame({'name': [self.file], 'file': 'Error', 'x': 'Error', 'y_up': 'Error',
+                                        'y_low': 'Error', 'spline': 'Error'})
                 Profile.dataframe = pd.concat([Profile.dataframe, new_row])
                 return
         else:
@@ -145,9 +147,10 @@ class Profile:
                 self.x_distribution()
                 self.get_spline()
                 self.update_dataframe()
-            except:
-                new_row = pd.DataFrame({'name': [self.file], 'x': 'Error', 'y_up': 'Error', 'y_low': 'Error',
-                                        'spline': 'Error'})
+            except Exception as e:
+                print(e)
+                new_row = pd.DataFrame({'name': [self.file], 'file': 'Error', 'x': 'Error', 'y_up': 'Error',
+                                        'y_low': 'Error', 'spline': 'Error'})
                 Profile.dataframe = pd.concat([Profile.dataframe, new_row])
                 return
 
@@ -155,7 +158,7 @@ class Profile:
         splinef_up = self.spline_funcs[0]
         splinef_low = self.spline_funcs[1]
 
-        new_row = pd.DataFrame({'name': [self.name], 'x': [splinef_up[0]], 'y_up': [splinef_up[1]],
+        new_row = pd.DataFrame({'name': [self.name], 'file': [self.file], 'x': [splinef_up[0]], 'y_up': [splinef_up[1]],
                                 'y_low': [splinef_low[1]], 'spline': [self.splines]})
         Profile.dataframe = pd.concat([Profile.dataframe, new_row])
 
@@ -177,25 +180,66 @@ class Profile:
             name = dat[0][0:-8]
         else:
             name = dat[0]
-        if dat[1] == '' or dat[2] == '':
+
+        # Remove name & header rows from dat
+        if dat[2] == '':
             dat = dat[empty_line_indxs[0] + 1:]
         else:
             dat = dat[1:]
 
+        # Remove empty final rows from dat
+        if dat[-1] == '' or dat[-1] == '\n':
+            dat = dat[:-1]
+        else:
+            pass
+
         # Float dat list
         dat_flt = []
-        for line in dat:
-            line = line.split()
-            line = [float(pt) for pt in line]
-            dat_flt.append(line)
+        if dat[-1] == '\x1a' or '\x1a25' in dat[-1]:
+            dat = dat[:-1]
+            for line in dat:
+                line = line.split()
+                line = [float(pt) for pt in line]
+                dat_flt.append(line)
+        else:
+            for line in dat:
+                line = line.replace('......', '0.0').replace('(', '').replace(')', '')
+                line = line.split()
+                line = [float(pt) for pt in line]
+                dat_flt.append(line)
 
-        if len(empty_line_indxs) == 0 or len(empty_line_indxs) == 1:
+        # Split upper and lower coordinates for different file types
+        try:
+            coords_up = dat_flt[:empty_line_indxs[1] - empty_line_indxs[0] - 1]
+            xs_up = [coord[0] for coord in coords_up]
+            ys_up = [coord[1] for coord in coords_up]
+
+            coords_low = dat_flt[empty_line_indxs[1] - empty_line_indxs[0]:]
+            xs_low = [coord[0] for coord in coords_low]
+            ys_low = [coord[1] for coord in coords_low]
+
+        except:
+            dat_flt = list(filter(None, dat_flt))
             xs = [coord[0] for coord in dat_flt]
             ys = [coord[1] for coord in dat_flt]
-            indx = 1
-            for x in xs[1:]:
+            indx = 0
+            for x in xs[:-1]:
                 d = xs[indx + 1] - x
-                if d > 0:
+                if d < 0:
+                    pass
+                elif d == 0:
+                    d1 = xs[indx + 2] - xs[indx + 1]
+                    if d1 == 0:
+                        xmin_indx = indx + 1
+                        xs.insert(xmin_indx, x)
+                        ys.insert(xmin_indx, ys[xmin_indx])
+                        break
+                    elif d1 > 0:
+                        xmin_indx = indx
+                        break
+                    elif d1 < 0:
+                        pass
+                elif d > 0:
                     xmin_indx = indx
                     xs.insert(xmin_indx, x)
                     ys.insert(xmin_indx, ys[xmin_indx])
@@ -206,31 +250,59 @@ class Profile:
             ys_up = ys[:xmin_indx + 1]
             ys_low = ys[xmin_indx + 1:]
 
-        else:
-            coords_up = dat_flt[:empty_line_indxs[1] - empty_line_indxs[0] - 1]
-            xs_up = [coord[0] for coord in coords_up]
-            ys_up = [coord[1] for coord in coords_up]
-
-            coords_low = dat_flt[empty_line_indxs[1] - empty_line_indxs[0]:]
-            xs_low = [coord[0] for coord in coords_low]
-            ys_low = [coord[1] for coord in coords_low]
-
         # Sort upper and lower in ascending x
         sorter = pd.DataFrame({'x': xs_up, 'y': ys_up})
         sorter = sorter.sort_values('x')
         xs_up = list(sorter.x)
         ys_up = list(sorter.y)
+
         sorter = pd.DataFrame({'x': xs_low, 'y': ys_low})
         sorter = sorter.sort_values('x')
         xs_low = list(sorter.x)
         ys_low = list(sorter.y)
 
+        # Remove duplicates by slightly increasing second and remove outliers
+        indx = 0
+        for x in xs_up[:-1]:
+            d = xs_up[indx + 1] - x
+            if d > 0:
+                pass
+            elif d == 0:
+                xs_up[indx + 1] = xs_up[indx + 1] + 0.000025
+            elif d < 0:
+                break
+            indx += 1
+        indx = 0
+        for x in xs_up:
+            if x > 5:
+                xs_low[indx + 1] = xs_low[indx + 1] + 0.000025
+            else:
+                pass
+            indx += 1
+
+        indx = 0
+        for x in xs_low[:-1]:
+            d = xs_low[indx + 1] - x
+            if d > 0:
+                pass
+            elif d == 0:
+                xs_low[indx + 1] = xs_low[indx + 1] + 0.000025
+            elif d < 0:
+                break
+            indx += 1
+        indx = 0
+        for x in xs_low:
+            if x > 5:
+                xs_low[indx] = max(xs_low[:-1]) + 0.000025
+            else:
+                pass
+            indx += 1
+
+        # Create list pairs with both x and y for upper and lower
         coords_up = [xs_up, ys_up]
         coords_low = [xs_low, ys_low]
 
-        # Change duplicates in xs
-        # TODO
-
+        # Create full continuous x and y lists for coord plotting
         xs_low_rev = list(xs_low)
         xs_low_rev.reverse()
         x = xs_up + xs_low_rev
@@ -255,11 +327,11 @@ class Profile:
     def get_spline(self):
         spline_up = interp.InterpolatedUnivariateSpline(self.coords_up[0], self.coords_up[1])
         yfunc_up = spline_up(self.spline_xs)
-        spline_func_up = [self.spline_xs.round(5), yfunc_up.round(5)]
+        spline_func_up = [self.spline_xs, yfunc_up]
 
         spline_low = interp.InterpolatedUnivariateSpline(self.coords_low[0], self.coords_low[1])
         yfunc_low = spline_low(self.spline_xs)
-        spline_func_low = [self.spline_xs.round(5), yfunc_low.round(5)]
+        spline_func_low = [self.spline_xs, yfunc_low]
 
         splines = [spline_up, spline_low]
         spline_funcs = [spline_func_up, spline_func_low]
