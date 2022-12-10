@@ -47,13 +47,23 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
     list of Profile, pd.DataFrame
     """
 
-    Profile.dataframe = pd.DataFrame(columns=['name', 'file', 'x', 'y_up', 'y_low', 'spline', 'xy_profile'])
-    profiles = []
+    aerofoils_df = pd.DataFrame(columns=['name', 'file', 'x', 'y_up', 'y_low', 'spline', 'xy_profile'])
+    profiles = {}
     for file in os.scandir(directory):
         if file.name.endswith('.' + ext):
-            profiles.append(Profile(file, points=points, prnt=prnt))
+            try:
+                p = Profile(file, points=points, prnt=prnt)
+                file_name = str(p.file)
 
-    return profiles, Profile.dataframe
+                profiles[file_name[11:-2]] = p
+
+                new_row = pd.DataFrame(
+                    {'name': [p.name], 'file': [p.file], 'x': [p.spline_funcs[0][0]], 'y_up': [p.spline_funcs[0][1]],
+                     'y_low': [p.spline_funcs[1][1]], 'spline': [p.splines], 'xy_profile': [p.xy_profile]})
+                aerofoils_df = pd.concat([aerofoils_df, new_row], ignore_index=True)
+
+            except Exception as e:
+                print(e)
 
 
 def plot_profile(df, indx, scatt=False, x_val=None, pltfig=1):
@@ -110,9 +120,6 @@ class Profile:
     TODO: add attribute documentation
     """
 
-    # Static dataframe variabled
-    dataframe = pd.DataFrame(columns=['name', 'file', 'x', 'y_up', 'y_low', 'spline', 'xy_profile'])
-
     def __init__(self, file, points=51, prnt=False):
         self.file = file
         self.points = points
@@ -130,42 +137,17 @@ class Profile:
         self.spline_funcs = None
 
         if prnt:
-            try:
-                print('Achieving profile coordinates...')
-                self.coord_profile()
-                print(f' {self.name} Done. Creating x-coordinate cosine distribution with {points} points...')
-                self.x_distribution()
-                print(f'  Done. Interpolating upper and lower profile splines at coordinates...')
-                self.get_spline()
-                print('   Updating static dataframe...')
-                self.update_dataframe()
-                print('    Done.')
-            except Exception as e:
-                print(e)
-                new_row = pd.DataFrame({'name': [self.file], 'file': 'Error', 'x': 'Error', 'y_up': 'Error',
-                                        'y_low': 'Error', 'spline': 'Error', 'xy_profile': 'Error'})
-                Profile.dataframe = pd.concat([Profile.dataframe, new_row], ignore_index=True)
-                return
+            print('Achieving profile coordinates...')
+            self.coord_profile()
+            print(f' {self.name} Done. Creating x-coordinate cosine distribution with {points} points...')
+            self.x_distribution()
+            print(f'  Done. Interpolating upper and lower profile splines at coordinates...')
+            self.get_spline()
+            print('   Done')
         else:
-            try:
-                self.coord_profile()
-                self.x_distribution()
-                self.get_spline()
-                self.update_dataframe()
-            except Exception as e:
-                print(e)
-                new_row = pd.DataFrame({'name': [self.file], 'file': 'Error', 'x': 'Error', 'y_up': 'Error',
-                                        'y_low': 'Error', 'spline': 'Error', 'xy_profile': 'Error'})
-                Profile.dataframe = pd.concat([Profile.dataframe, new_row], ignore_index=True)
-                return
-
-    def update_dataframe(self):
-        splinef_up = self.spline_funcs[0]
-        splinef_low = self.spline_funcs[1]
-
-        new_row = pd.DataFrame({'name': [self.name], 'file': [self.file], 'x': [splinef_up[0]], 'y_up': [splinef_up[1]],
-                                'y_low': [splinef_low[1]], 'spline': [self.splines], 'xy_profile': [self.xy_profile]})
-        Profile.dataframe = pd.concat([Profile.dataframe, new_row], ignore_index=True)
+            self.coord_profile()
+            self.x_distribution()
+            self.get_spline()
 
     def coord_profile(self):
         # Read aerofoil .dat file into dat list
@@ -339,11 +321,11 @@ class Profile:
         return spline_xs
 
     def get_spline(self):
-        spline_up = interp.InterpolatedUnivariateSpline(self.coords_up[0], self.coords_up[1], k=1)
+        spline_up = interp.InterpolatedUnivariateSpline(self.coords_up[0], self.coords_up[1], k=3)
         yfunc_up = spline_up(self.spline_xs)
         spline_func_up = [self.spline_xs, yfunc_up]
 
-        spline_low = interp.InterpolatedUnivariateSpline(self.coords_low[0], self.coords_low[1], k=1)
+        spline_low = interp.InterpolatedUnivariateSpline(self.coords_low[0], self.coords_low[1], k=3)
         yfunc_low = spline_low(self.spline_xs)
         spline_func_low = [self.spline_xs, yfunc_low]
 
