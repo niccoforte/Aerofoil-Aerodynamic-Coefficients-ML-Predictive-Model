@@ -1,17 +1,28 @@
 import pandas as pd
 import random
 import profile
+import cases
 
-# Download aerofoil .dat files to 'aerofoil_dat' directory
+# Download aerofoil .dat files to 'aerofoil_dat' directory and case .csv files to 'case_dat' directory
 # profile.get_aerofoils()
+# cases.get_cases()
 
-# Create list and dataframe of profile objects
-profiles, aerofoils_df = profile.create_profiles()
+# Create dictionary of Profile objects and Aerofoils DataFrame
+profiles, aerofoils_df = profile.create_profiles(k=3, points=51, prnt=False)
+
+# Create DataFrame of case data
+cases_df = cases.create_cases()
+
+# Merge aerofoils and cases dataframes
+data_df = pd.merge(aerofoils_df, cases_df, on="file")
 
 pd.set_option('display.max_columns', None)
-print(aerofoils_df)
+print(data_df)
 
-# profile.plot_profile(aerofoils_df, 946, scatt=True, x_val=None, pltfig=1)
+
+# GRAPHS BELOW
+
+# profile.plot_profile(aerofoils_df, 945, scatt=True, x_val=0.004, pltfig=1)
 
 # for i in range(10):
 #     r = random.randint(0, len(aerofoils_df))
