@@ -1,6 +1,6 @@
 import pandas as pd
 import random
-import profile
+import aerofoils
 import cases
 
 # Download aerofoil .dat files to 'aerofoil_dat' directory and case .csv files to 'case_dat' directory
@@ -8,7 +8,7 @@ import cases
 # cases.get_cases()
 
 # Create dictionary of Profile objects and Aerofoils DataFrame
-profiles, aerofoils_df = profile.create_profiles(k=3, points=51, prnt=False)
+profiles, aerofoils_df = aerofoils.create_profiles(k=3, points=51, prnt=False)
 
 # Create DataFrame of case data
 cases_df = cases.create_cases()
