@@ -10,25 +10,24 @@ from bs4 import BeautifulSoup
 
 
 def get_aerofoils():
+    """Achieve all '.dat' files from UIUC aerofoil coordinate database and downloads to existing directory."""
+
     baseFlpth = "https://m-selig.ae.illinois.edu/ads/"
 
     html_page = urllib2.urlopen("https://m-selig.ae.illinois.edu/ads/coord_database.html")
     soup = BeautifulSoup(html_page, 'lxml')
 
-    ind = 1
-    #links = []
     print('Staring download...')
+    indx = 0
     for link in soup.find_all('a', attrs={'href': re.compile('\.dat', re.IGNORECASE)}):
-        #links.append(link.get('href'))
+        fullfilename = os.path.join('aerofoil_dat', link.get('href').rsplit('/', 1)[-1])
+        urllib2.urlretrieve(baseFlpth + link.get('href'), fullfilename)
+        indx += 1
 
-        fullfilename = os.path.join('aerofoil_dat', link.get('href').rsplit('/',1)[-1])
-        urllib2.urlretrieve(baseFlpth+link.get('href'), fullfilename)
-        #print("Saving file %i" %ind)
-        ind = ind + 1
-    print(f' Done. {ind} files copied and saved to ~/Desktop/Code/Dissertation/aerfoil_dat.')
+    print(f' Done. {indx} files copied and saved to ~/Desktop/Code/Dissertation/aerfoil_dat.')
 
 
-def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
+def create_profiles(directory='aerofoil_dat', ext='dat', k=3, points=51, prnt=False):
     """Generates a list of profile objects from a directory containing given files.
 
     Parameters
@@ -37,6 +36,8 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
         Directory in the project workspace that contains the files to be upoaded.
     ext : str
         Extension of the files.
+    k : int
+        Degree of spline.
     points : int
         Points at which to evaluate the splines of the aerofoils.
     prnt : bool
@@ -52,7 +53,7 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
     for file in os.scandir(directory):
         if file.name.endswith('.' + ext):
             try:
-                p = Profile(file, points=points, prnt=prnt)
+                p = Profile(file, k=k, points=points, prnt=prnt)
                 file_name = str(p.file)
 
                 profiles[file_name[11:-2]] = p
@@ -63,7 +64,9 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
                 aerofoils_df = pd.concat([aerofoils_df, new_row], ignore_index=True)
 
             except Exception as e:
-                print(e)
+                print(file.name, 'failed. Error:', e)
+
+    return profiles, aerofoils_df
 
 
 def plot_profile(df, indx, scatt=False, x_val=None, pltfig=1):
@@ -71,12 +74,16 @@ def plot_profile(df, indx, scatt=False, x_val=None, pltfig=1):
 
     Parameters
     ----------
-    df : pd.DataFrame
+    df : pandas DataFrame
         Dataframe containing the aerofoils' data.
     indx : int
         Index of the aerofoil to be plotted.
+    scatt : bool or None
+        Includes scatterplot of original coordinates.
     x_val : float, optional
         x-value to be plotted along with the aerofoil.
+    pltfig : int
+        Figure on which to plot when plotting multiple aerofoils at once.
     """
 
     print(f'Plotting {df.name[indx]} Aerofoil...')
@@ -90,7 +97,7 @@ def plot_profile(df, indx, scatt=False, x_val=None, pltfig=1):
 
     if scatt:
         print(' Including scatter of original x - y coordinates.')
-        plt.scatter(df.xy_profile[indx][0],df.xy_profile[indx][1], s=10)
+        plt.scatter(df.xy_profile[indx][0], df.xy_profile[indx][1], s=10)
 
     if x_val:
         print(f' Evaluating y-coordinates at x={x_val}...')
@@ -117,12 +124,20 @@ class Profile:
 
     Attributes
     ----------
-    TODO: add attribute documentation
+    file : .dat
+        UIUC aerofoil coordinate file.
+    k : int
+        Degree of spline.
+    points : int
+        Points at which to evaluate the splines of the aerofoils.
+    prnt : bool
+        Print log as profile objects are created.
     """
 
-    def __init__(self, file, points=51, prnt=False):
+    def __init__(self, file, k=3, points=51, prnt=False):
         self.file = file
         self.points = points
+        self.k = k
 
         self.name = None
         self.coords_up = None
@@ -155,27 +170,23 @@ class Profile:
             lines = f.readlines()
             dat = []
             empty_line_indxs = []
-            indx = 0
-            for line in lines:
+            for indx, line in enumerate(lines):
                 line = line.strip()
                 if line == '':
                     empty_line_indxs.append(indx)
                 dat.append(line)
-                indx += 1
 
-        # Set aerofoil name
-        if dat[0][-8:] == ' AIRFOIL':
-            name = dat[0][0:-8]
-        else:
-            name = dat[0]
+        # Set aerofoil name, change filename, cleanup header rows, & remove empty final rows
+        name = dat[0]
+        name = name.replace('AIRFOIL', 'Aerofoil')
 
-        # Remove name & header rows from dat
+        file = str(self.file)[11:-6]
+
         if dat[2] == '':
             dat = dat[empty_line_indxs[0] + 1:]
         else:
             dat = dat[1:]
 
-        # Remove empty final rows from dat
         if dat[-1] == '' or dat[-1] == '\n':
             dat = dat[:-1]
         else:
@@ -210,8 +221,7 @@ class Profile:
             dat_flt = list(filter(None, dat_flt))
             xs = [coord[0] for coord in dat_flt]
             ys = [coord[1] for coord in dat_flt]
-            indx = 0
-            for x in xs[:-1]:
+            for indx, x in enumerate(xs[:-1]):
                 d = xs[indx + 1] - x
                 if d < 0:
                     pass
@@ -232,7 +242,6 @@ class Profile:
                     xs.insert(xmin_indx, x)
                     ys.insert(xmin_indx, ys[xmin_indx])
                     break
-                indx += 1
             xs_up = xs[:xmin_indx + 1]
             xs_low = xs[xmin_indx + 1:]
             ys_up = ys[:xmin_indx + 1]
@@ -249,9 +258,8 @@ class Profile:
         xs_low = list(sorter.x)
         ys_low = list(sorter.y)
 
-        # Remove duplicates by slightly increasing second, remove outliers >1, and set minimum x to 0
-        indx = 0
-        for x in xs_up[:-1]:
+        # Remove x duplicates by slightly increasing second.
+        for indx, x in enumerate(xs_up[:-1]):
             d = xs_up[indx + 1] - x
             if d > 0:
                 pass
@@ -259,20 +267,7 @@ class Profile:
                 xs_up[indx + 1] = xs_up[indx + 1] + 0.000025
             elif d < 0:
                 break
-            indx += 1
-        indx = 0
-        for x in xs_up:
-            if x > 5:
-                xs_low[indx + 1] = xs_low[indx + 1] + 0.000025
-            elif x == min(xs_up):
-                if x > 0:
-                    xs_up[indx] = 0
-            else:
-                pass
-            indx += 1
-
-        indx = 0
-        for x in xs_low[:-1]:
+        for indx, x in enumerate(xs_low[:-1]):
             d = xs_low[indx + 1] - x
             if d > 0:
                 pass
@@ -280,19 +275,45 @@ class Profile:
                 xs_low[indx + 1] = xs_low[indx + 1] + 0.000025
             elif d < 0:
                 break
-            indx += 1
-        indx = 0
-        for x in xs_low:
-            if x > 5:
-                xs_low[indx] = max(xs_low[:-1]) + 0.000025
-            elif x == min(xs_low):
-                if x > 0:
-                    xs_low[indx] = 0
-            else:
-                pass
-            indx += 1
 
-        # Create list pairs with both x and y for upper and lower
+        # Remove outliers in x domain (x>5).
+        for indx, x in enumerate(xs_up):
+            if x > 5:
+                xs_up.remove(x)
+                xs_up.insert(indx, max(xs_up) + 0.000025)
+        for indx, x in enumerate(xs_low):
+            if x > 5:
+                xs_low.remove(x)
+                xs_low.insert(indx, max(xs_low) + 0.000025)
+
+        # Set domain between 0 and 1.
+        if min(xs_up) < 0:
+            xs_up = [x + abs(min(xs_up)) for x in xs_up]
+        if min(xs_up) > 0:
+            xs_up = [x - abs(min(xs_up)) for x in xs_up]
+        if max(xs_up) < 1:
+            ratio = 1 / max(xs_up)
+            xs_up = [x * ratio for x in xs_up]
+            ys_up = [y * ratio for y in ys_up]
+        if max(xs_up) > 1:
+            ratio = max(xs_up)
+            xs_up = [x / ratio for x in xs_up]
+            ys_up = [y / ratio for y in ys_up]
+
+        if min(xs_low) < 0:
+            xs_low = [x + abs(min(xs_low)) for x in xs_low]
+        if min(xs_low) > 0:
+            xs_low = [x - abs(min(xs_low)) for x in xs_low]
+        if max(xs_low) < 1:
+            ratio = 1 / max(xs_low)
+            xs_low = [x * ratio for x in xs_low]
+            ys_low = [y * ratio for y in ys_low]
+        if max(xs_low) > 1:
+            old_max = max(xs_low)
+            xs_low = [x / old_max for x in xs_low]
+            ys_low = [y / old_max for y in ys_low]
+
+        # Create upper and lower pairs with both x and y coords
         coords_up = [xs_up, ys_up]
         coords_low = [xs_low, ys_low]
 
@@ -306,6 +327,7 @@ class Profile:
         xy_profile = [x, y]
 
         self.name = name
+        self.file = file
         self.coords_up = coords_up
         self.coords_low = coords_low
         self.x = x
@@ -321,11 +343,11 @@ class Profile:
         return spline_xs
 
     def get_spline(self):
-        spline_up = interp.InterpolatedUnivariateSpline(self.coords_up[0], self.coords_up[1], k=3)
+        spline_up = interp.InterpolatedUnivariateSpline(self.coords_up[0], self.coords_up[1], k=self.k)
         yfunc_up = spline_up(self.spline_xs)
         spline_func_up = [self.spline_xs, yfunc_up]
 
-        spline_low = interp.InterpolatedUnivariateSpline(self.coords_low[0], self.coords_low[1], k=3)
+        spline_low = interp.InterpolatedUnivariateSpline(self.coords_low[0], self.coords_low[1], k=self.k)
         yfunc_low = spline_low(self.spline_xs)
         spline_func_low = [self.spline_xs, yfunc_low]
 
