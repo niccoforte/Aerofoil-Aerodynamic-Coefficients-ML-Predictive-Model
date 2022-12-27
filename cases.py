@@ -5,7 +5,7 @@ import urllib.request as urllib2
 import pandas as pd
 
 
-def get_cases():
+def get_AFT_cases():
     baseFlpth = "http://airfoiltools.com"
 
     html_all = urllib2.urlopen("http://airfoiltools.com/search/airfoils").read()

@@ -9,7 +9,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 
 
-def get_aerofoils():
+def get_UIUC_foils():
     """Achieve all '.dat' files from UIUC aerofoil coordinate database and downloads to existing directory."""
 
     baseFlpth = "https://m-selig.ae.illinois.edu/ads/"
@@ -17,17 +17,56 @@ def get_aerofoils():
     html_page = urllib2.urlopen("https://m-selig.ae.illinois.edu/ads/coord_database.html")
     soup = BeautifulSoup(html_page, 'lxml')
 
-    print('Staring download...')
+    print('Staring UIUC download...')
     indx = 0
     for link in soup.find_all('a', attrs={'href': re.compile('\.dat', re.IGNORECASE)}):
         fullfilename = os.path.join('aerofoil_dat', link.get('href').rsplit('/', 1)[-1])
         urllib2.urlretrieve(baseFlpth + link.get('href'), fullfilename)
+
         indx += 1
 
-    print(f' Done. {indx} files copied and saved to ~/Desktop/Code/Dissertation/aerfoil_dat.')
+    print(f' Done. {indx} files copied from https://m-selig.ae.illinois.edu/ads/coord_database.html and saved to \
+          ~/Desktop/Code/Dissertation/aerfoil_dat.')
 
 
-def create_profiles(directory='aerofoil_dat', ext='dat', k=3, points=51, prnt=False):
+def get_AFT_foils():
+    baseFlpth = "http://airfoiltools.com"
+
+    html_all = urllib2.urlopen("http://airfoiltools.com/search/airfoils").read()
+    soup_all = BeautifulSoup(html_all, 'html.parser')
+
+    links_all = [link['href'] for link in soup_all.find_all('a', href=re.compile("/airfoil/details", re.IGNORECASE))]
+
+    linknames = [link[25:-3].lower() for link in links_all]
+    filenames_dir = [str(file)[11:-6].lower() for file in os.scandir('aerofoil_dat')]
+    linknames_new = [name for name in linknames if name not in filenames_dir]
+    links_new = []
+    for new in linknames_new:
+        for link in links_all:
+            if new in link:
+                links_new.append(link)
+
+    print('Starting AFT download...')
+    indx = 0
+    for link in links_new:
+        html_foil = urllib2.urlopen(baseFlpth + link).read()
+        soup_foil = BeautifulSoup(html_foil, 'html.parser')
+
+        link_dat = soup_foil.find_all('a', href=re.compile("/airfoil/lednicerdatfile"))[0]['href']
+        name = link_dat[33:-3] + '.dat'
+
+        if name in filenames_dir: print(name)
+
+        fullfilename = os.path.join('aerofoil_dat', name)
+        urllib2.urlretrieve(baseFlpth + link_dat, fullfilename)
+
+        indx += 1
+
+    print(f' Done. {indx} files copied from http://airfoiltools.com and saved to \
+          ~/Desktop/Code/Dissertation/aerfoil_dat.')
+
+
+def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
     """Generates a list of profile objects from a directory containing given files.
 
     Parameters
@@ -53,7 +92,7 @@ def create_profiles(directory='aerofoil_dat', ext='dat', k=3, points=51, prnt=Fa
     for file in os.scandir(directory):
         if file.name.endswith('.' + ext):
             try:
-                p = Profile(file, k=k, points=points, prnt=prnt)
+                p = Profile(file, points=points, prnt=prnt)
                 file_name = str(p.file)
 
                 profiles[file_name[11:-2]] = p
@@ -134,10 +173,9 @@ class Profile:
         Print log as profile objects are created.
     """
 
-    def __init__(self, file, k=3, points=51, prnt=False):
+    def __init__(self, file, points=51, prnt=False):
         self.file = file
         self.points = points
-        self.k = k
 
         self.name = None
         self.coords_up = None
@@ -343,11 +381,11 @@ class Profile:
         return spline_xs
 
     def get_spline(self):
-        spline_up = interp.InterpolatedUnivariateSpline(self.coords_up[0], self.coords_up[1], k=self.k)
+        spline_up = interp.Akima1DInterpolator(self.coords_up[0], self.coords_up[1])
         yfunc_up = spline_up(self.spline_xs)
         spline_func_up = [self.spline_xs, yfunc_up]
 
-        spline_low = interp.InterpolatedUnivariateSpline(self.coords_low[0], self.coords_low[1], k=self.k)
+        spline_low = interp.Akima1DInterpolator(self.coords_low[0], self.coords_low[1])
         yfunc_low = spline_low(self.spline_xs)
         spline_func_low = [self.spline_xs, yfunc_low]
 
