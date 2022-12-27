@@ -15,14 +15,16 @@ def get_AFT_cases(directory='case_dat'):
                  soup_all.find_all('a', href=re.compile("/airfoil/details"))]  # len(links_all) = 1638
 
     linknames = [link[25:-3].lower() for link in links_all]
-    filenames_dir = [str(file)[11:].rsplit('-')[0].lower() for file in os.scandir(directory)]
+    filenames_dir = [str(file)[11:].lower() for file in os.scandir(directory)]
     linknames_new = []
     for name in linknames:
         count = 0
         for filename in filenames_dir:
-            if filename == name:
+            if name in filename:
                 count += 1
-        if count == 5:
+            else:
+                continue
+        if count > 3:
             continue
         else:
             linknames_new.append(name)
@@ -39,21 +41,23 @@ def get_AFT_cases(directory='case_dat'):
         soup_foil = BeautifulSoup(html_foil, 'html.parser')
 
         links_Re = [link_Re['href'] for link_Re in soup_foil.find_all('a', href=re.compile("/polar/details"))]
-
         for link_Re in links_Re:
-            if '-n5' in link_Re:
+            if link_Re.endswith('-n5'):
+                continue
+            elif link_Re.endswith('-n1'):
                 continue
 
             html_Re = urllib2.urlopen(baseFlpth + link_Re).read()
             soup_Re = BeautifulSoup(html_Re, 'html.parser')
 
-            link_csv = soup_Re.find_all('a', href=re.compile("/polar/csv"))[0]['href']
+            link_csv = soup_Re.find_all('a', href=re.compile("polar/csv"))[0]['href']
+
             name = link_csv[20:] + '.csv'
 
             fullfilename = os.path.join(directory, name)
             urllib2.urlretrieve(baseFlpth + link_csv, fullfilename)
 
-        indx += 1
+            indx += 1
 
     print(f' Done. {indx} files copied from http://airfoiltools.com/search/airfoils and saved to ~/{directory}.')
 
@@ -81,8 +85,6 @@ def read_case(file):
 
 
 def create_cases(directory='case_dat', ext='csv'):
-    """ """
-
     print('Creating Cases DataFrame...')
 
     cases_df = pd.DataFrame(columns=['file', 'Re', 'alpha', 'Cl', 'Cd'])
