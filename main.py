@@ -4,9 +4,9 @@ import aerofoils
 import cases
 
 # Download aerofoil .dat files to 'aerofoil_dat' directory and case .csv files to 'case_dat' directory
-# aerofoils.get_UIUC_foils()
-# aerofoils.get_AFT_foils()
-# cases.get_AFT_cases()
+aerofoils.get_UIUC_foils(directory='aerofoil_dat')
+aerofoils.get_AFT_foils(directory='aerofoil_dat')
+# cases.get_AFT_cases(directory='case_dat')
 
 # Create dictionary of Profile objects and Aerofoils DataFrame
 profiles, aerofoils_df = aerofoils.create_profiles(points=51, prnt=False)
@@ -15,7 +15,9 @@ profiles, aerofoils_df = aerofoils.create_profiles(points=51, prnt=False)
 cases_df = cases.create_cases()
 
 # Merge aerofoils and cases dataframes
+print('Merging Aerofoils and Cases DataFrames...')
 data_df = pd.merge(aerofoils_df, cases_df, on="file")
+print(' DataFrames merged successfully.')
 
 pd.set_option('display.max_columns', None)
 print(data_df)

@@ -9,27 +9,43 @@ import pandas as pd
 from bs4 import BeautifulSoup
 
 
-def get_UIUC_foils():
-    """Achieve all '.dat' files from UIUC aerofoil coordinate database and downloads to existing directory."""
+def get_UIUC_foils(directory='aerofoil_dat'):
+    """Achieve all '.dat' files from UIUC aerofoil coordinate database and downloads to directory."""
 
     baseFlpth = "https://m-selig.ae.illinois.edu/ads/"
 
     html_page = urllib2.urlopen("https://m-selig.ae.illinois.edu/ads/coord_database.html")
     soup = BeautifulSoup(html_page, 'lxml')
 
-    print('Staring UIUC download...')
+    links_all = [link['href'] for link in soup.find_all('a', href=re.compile('\.dat', re.IGNORECASE))]
+
+    linknames = []
+    for link in links_all:
+        if link.startswith('coord_updates/'):
+            linknames.append(link[14:-4].lower())
+        elif link.startswith('coord/'):
+            linknames.append(link[6:-4].lower())
+    filenames_dir = [str(file)[11:-6].lower() for file in os.scandir(directory)]
+    linknames_new = [name for name in linknames if name not in filenames_dir]
+    links_new = []
+    for new in linknames_new:
+        for link in links_all:
+            if new in link:
+                links_new.append(link)
+
+    print('Starting UIUC Aerofoil download...')
     indx = 0
-    for link in soup.find_all('a', attrs={'href': re.compile('\.dat', re.IGNORECASE)}):
-        fullfilename = os.path.join('aerofoil_dat', link.get('href').rsplit('/', 1)[-1])
-        urllib2.urlretrieve(baseFlpth + link.get('href'), fullfilename)
+    for link in links_new:
+        fullfilename = os.path.join(directory, link.rsplit('/')[-1])
+        urllib2.urlretrieve(baseFlpth + link, fullfilename)
 
         indx += 1
 
-    print(f' Done. {indx} files copied from https://m-selig.ae.illinois.edu/ads/coord_database.html and saved to \
-          ~/Desktop/Code/Dissertation/aerfoil_dat.')
+    print(f' Done. {indx} files copied from https://m-selig.ae.illinois.edu/ads/coord_database.html and saved to: '
+          f'~/{directory}.')
 
 
-def get_AFT_foils():
+def get_AFT_foils(directory='aerofoil_dat'):
     baseFlpth = "http://airfoiltools.com"
 
     html_all = urllib2.urlopen("http://airfoiltools.com/search/airfoils").read()
@@ -38,7 +54,7 @@ def get_AFT_foils():
     links_all = [link['href'] for link in soup_all.find_all('a', href=re.compile("/airfoil/details", re.IGNORECASE))]
 
     linknames = [link[25:-3].lower() for link in links_all]
-    filenames_dir = [str(file)[11:-6].lower() for file in os.scandir('aerofoil_dat')]
+    filenames_dir = [str(file)[11:-6].lower() for file in os.scandir(directory)]
     linknames_new = [name for name in linknames if name not in filenames_dir]
     links_new = []
     for new in linknames_new:
@@ -46,7 +62,7 @@ def get_AFT_foils():
             if new in link:
                 links_new.append(link)
 
-    print('Starting AFT download...')
+    print('Starting AFT Aerofoil download...')
     indx = 0
     for link in links_new:
         html_foil = urllib2.urlopen(baseFlpth + link).read()
@@ -55,15 +71,12 @@ def get_AFT_foils():
         link_dat = soup_foil.find_all('a', href=re.compile("/airfoil/lednicerdatfile"))[0]['href']
         name = link_dat[33:-3] + '.dat'
 
-        if name in filenames_dir: print(name)
-
-        fullfilename = os.path.join('aerofoil_dat', name)
+        fullfilename = os.path.join(directory, name)
         urllib2.urlretrieve(baseFlpth + link_dat, fullfilename)
 
         indx += 1
 
-    print(f' Done. {indx} files copied from http://airfoiltools.com and saved to \
-          ~/Desktop/Code/Dissertation/aerfoil_dat.')
+    print(f' Done. {indx} files copied from http://airfoiltools.com/search/airfoils and saved to: ~/{directory}.')
 
 
 def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
@@ -75,8 +88,6 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
         Directory in the project workspace that contains the files to be upoaded.
     ext : str
         Extension of the files.
-    k : int
-        Degree of spline.
     points : int
         Points at which to evaluate the splines of the aerofoils.
     prnt : bool
@@ -86,6 +97,8 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
     -------
     list of Profile, pd.DataFrame
     """
+
+    print('Creating Aerofoils DataFrame...')
 
     aerofoils_df = pd.DataFrame(columns=['name', 'file', 'x', 'y_up', 'y_low', 'spline', 'xy_profile'])
     profiles = {}
@@ -104,6 +117,8 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
 
             except Exception as e:
                 print(file.name, 'failed. Error:', e)
+
+    print(' Aerofoils DataFrame ceated successfully.')
 
     return profiles, aerofoils_df
 
@@ -165,8 +180,6 @@ class Profile:
     ----------
     file : .dat
         UIUC aerofoil coordinate file.
-    k : int
-        Degree of spline.
     points : int
         Points at which to evaluate the splines of the aerofoils.
     prnt : bool
