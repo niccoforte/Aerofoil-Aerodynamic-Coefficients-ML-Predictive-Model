@@ -16,8 +16,8 @@ cases_df = cases.create_cases()
 
 # Merge aerofoils and cases dataframes
 print('Merging Aerofoils and Cases DataFrames...')
-data_df = pd.merge(aerofoils_df, cases_df, on="file")
-print(' DataFrames merged successfully.')
+data_df = pd.merge(aerofoils_df, cases_df, on='file', how='inner')
+print(' DataFrames merged successfully. Printing... \n')
 
 pd.set_option('display.max_columns', None)
 print(data_df)

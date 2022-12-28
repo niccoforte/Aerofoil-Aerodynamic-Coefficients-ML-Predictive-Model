@@ -66,7 +66,7 @@ def read_case(file):
     top = pd.read_csv(file, nrows=8)
     bottom = pd.read_csv(file, skiprows=9)
 
-    name = top.iloc[1, 0][:-3]
+    name = top.iloc[1, 0][:-3].lower().replace('.','').replace('_','-')
     Re = top.iloc[2, 0]
 
     alphas = []

@@ -116,7 +116,7 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
                 aerofoils_df = pd.concat([aerofoils_df, new_row], ignore_index=True)
 
             except Exception as e:
-                print(file.name, 'failed. Error:', e)
+                print('', file.name, 'failed. Error:', e)
 
     print(' Aerofoils DataFrame ceated successfully.')
 
@@ -231,7 +231,7 @@ class Profile:
         name = dat[0]
         name = name.replace('AIRFOIL', 'Aerofoil')
 
-        file = str(self.file)[11:-6]
+        file = str(self.file)[11:-6].lower().replace('.','').replace('_','-')
 
         if dat[2] == '':
             dat = dat[empty_line_indxs[0] + 1:]
