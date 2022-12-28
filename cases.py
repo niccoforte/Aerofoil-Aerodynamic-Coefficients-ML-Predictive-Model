@@ -97,6 +97,6 @@ def create_cases(directory='case_dat', ext='csv'):
             case_df = pd.DataFrame({'file': name, 'Re': Re, 'alpha': alphas, 'Cl': Cls, 'Cd': Cds})
             cases_df = pd.concat([cases_df, case_df], ignore_index=True)
 
-    print(' Cases DataFrame ceated successfully.')
+    print(' Cases DataFrame created successfully.')
 
     return cases_df

@@ -118,7 +118,7 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
             except Exception as e:
                 print('', file.name, 'failed. Error:', e)
 
-    print(' Aerofoils DataFrame ceated successfully.')
+    print(' Aerofoils DataFrame created successfully.')
 
     return profiles, aerofoils_df
 
