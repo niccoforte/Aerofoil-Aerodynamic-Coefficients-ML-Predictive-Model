@@ -3,16 +3,20 @@ import random
 import aerofoils
 import cases
 
+
 # Download aerofoil .dat files to 'aerofoil_dat' directory and case .csv files to 'case_dat' directory
 aerofoils.get_UIUC_foils(directory='aerofoil_dat')
 aerofoils.get_AFT_foils(directory='aerofoil_dat')
 cases.get_AFT_cases(directory='case_dat')
 
+
 # Create dictionary of Profile objects and Aerofoils DataFrame
 profiles, aerofoils_df = aerofoils.create_profiles(points=51, prnt=False)
 
+
 # Create DataFrame of case data
 cases_df = cases.create_cases()
+
 
 # Merge aerofoils and cases dataframes
 print('Merging Aerofoils and Cases DataFrames...')
@@ -23,7 +27,7 @@ pd.set_option('display.max_columns', None)
 print(data_df)
 
 
-# GRAPHS BELOW
+# Aerofoil Plots
 
 # profile.plot_profile(aerofoils_df, 945, scatt=True, x_val=0.004, pltfig=1)
 
