@@ -41,11 +41,13 @@ def get_UIUC_foils(directory='aerofoil_dat'):
 
         indx += 1
 
-    print(f' Done. {indx} files copied from https://m-selig.ae.illinois.edu/ads/coord_database.html and saved to: '
+    print(f'-Done. {indx} files copied from https://m-selig.ae.illinois.edu/ads/coord_database.html and saved to: '
           f'~/{directory}.')
 
 
 def get_AFT_foils(directory='aerofoil_dat'):
+    """ """
+
     baseFlpth = "http://airfoiltools.com"
 
     html_all = urllib2.urlopen("http://airfoiltools.com/search/airfoils").read()
@@ -76,7 +78,50 @@ def get_AFT_foils(directory='aerofoil_dat'):
 
         indx += 1
 
-    print(f' Done. {indx} files copied from http://airfoiltools.com/search/airfoils and saved to: ~/{directory}.')
+    print(f'-Done. {indx} files copied from http://airfoiltools.com/search/airfoils and saved to: ~/{directory}.')
+
+
+def get_RENNES_foils(directory='rennes_dat/aerofoil_dat'):
+    baseFlpth = "https://perso.univ-rennes1.fr/laurent.blanchard/Profils/"
+
+    html_all = urllib2.urlopen(baseFlpth).read()
+    soup_all = BeautifulSoup(html_all, 'html.parser')
+
+    links_all = [link['href'] for link in soup_all.find_all('a', href=re.compile("/index"))]
+    links_all.remove('centrepoussee/index.html')
+    links_all.remove('clouet/index.html')
+
+    linknames = [link[:-11].lower() for link in links_all]
+    filenames_dir = [str(file)[11:-6].lower() for file in os.scandir(directory)]
+    linknames_new = [name for name in linknames if name not in filenames_dir]
+    links_new = []
+    for new in linknames_new:
+        for link in links_all:
+            if new in link:
+                links_new.append(link)
+
+    print('Staring RENNES Aerofoil download...')
+    indx = 0
+    for link in links_new:
+        try:
+            html_foil = urllib2.urlopen(baseFlpth + link).read()
+            soup_foil = BeautifulSoup(html_foil, 'html.parser')
+
+            links_dat1 = [link_Re['href'] for link_Re in soup_foil.find_all('a', href=re.compile('.dat'))]
+            links_dat2 = [link_Re['href'] for link_Re in soup_foil.find_all('a', href=re.compile('.DAT'))]
+            links_dat = links_dat1 + links_dat2
+            links_dat = [link for link in links_dat if link[:-4] not in filenames_dir]
+
+            for link_dat in links_dat:
+                fullfilename = os.path.join(directory, link_dat.lower())
+                urllib2.urlretrieve(baseFlpth + link[:-10] + link_dat, fullfilename)
+
+                indx += 1
+
+        except Exception as e:
+            pass  # print(e)
+
+    print(f'-Done. {indx} files copied from {baseFlpth} and saved to ~/{directory}.')
 
 
 def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
@@ -98,7 +143,10 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
     list of Profile, pd.DataFrame
     """
 
-    print('Creating Aerofoils DataFrame...')
+    if directory == 'aerofoil_dat':
+        print('Creating Aerofoils DataFrame...')
+    elif directory == 'rennes_dat/aerofoil_dat':
+        print('Creating Rennes Aerofoils DataFrame...')
 
     aerofoils_df = pd.DataFrame(columns=['name', 'file', 'x', 'y_up', 'y_low', 'spline', 'xy_profile'])
     profiles = {}
@@ -107,8 +155,7 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
             try:
                 p = Profile(file, points=points, prnt=prnt)
                 file_name = str(p.file)
-
-                profiles[file_name[11:-2]] = p
+                profiles[file_name] = p
 
                 new_row = pd.DataFrame(
                     {'name': [p.name], 'file': [p.file], 'x': [p.spline_funcs[0][0]], 'y_up': [p.spline_funcs[0][1]],
@@ -116,9 +163,9 @@ def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
                 aerofoils_df = pd.concat([aerofoils_df, new_row], ignore_index=True)
 
             except Exception as e:
-                print('', file.name, 'failed. Error:', e)
+                print(' ', file.name, 'failed. ERROR:', e)
 
-    print(f' Aerofoils DataFrame created successfully with {len(aerofoils_df)} aerofoil profiles.')
+    print(f'-Done. DataFrame created successfully with {len(aerofoils_df)} aerofoil profiles.')
 
     return profiles, aerofoils_df
 
@@ -140,10 +187,10 @@ def plot_profile(df, indx, scatt=False, x_val=None, pltfig=1):
         Figure on which to plot when plotting multiple aerofoils at once.
     """
 
-    print(f'Plotting {df.name[indx]} Aerofoil...')
+    print(f'Plotting {df.name[indx]} ...')
 
     plt.figure(pltfig)
-    plt.title(df.name[indx])
+    plt.title(df.name[indx].capitalize())
     plt.plot(df.x[indx], df.y_low[indx])
     plt.plot(df.x[indx], df.y_up[indx])
     plt.ylim([min(df.y_low[indx]) - 0.15, max(df.y_up[indx]) + 0.15])
@@ -151,10 +198,10 @@ def plot_profile(df, indx, scatt=False, x_val=None, pltfig=1):
 
     if scatt:
         print(' Including scatter of original x - y coordinates.')
-        plt.scatter(df.xy_profile[indx][0], df.xy_profile[indx][1], s=10)
+        plt.scatter(df.xy_profile[indx][0], df.xy_profile[indx][1], s=5)
 
     if x_val:
-        print(f' Evaluating y-coordinates at x={x_val}...')
+        print(f' and evaluating y coordinates at x={x_val}...')
 
         splines = df.spline[indx]
         spline_up = splines[0]
@@ -215,7 +262,10 @@ class Profile:
             self.x_distribution()
             self.get_spline()
 
+
     def coord_profile(self):
+        """ """
+
         # Read aerofoil .dat file into dat list
         with open(self.file, "r") as f:
             lines = f.readlines()
@@ -227,11 +277,11 @@ class Profile:
                     empty_line_indxs.append(indx)
                 dat.append(line)
 
-        # Set aerofoil name, change filename, cleanup header rows, & remove empty final rows
+        # Set aerofoil name, change file, cleanup header rows, & remove empty final rows
         name = dat[0]
         name = name.replace('AIRFOIL', 'Aerofoil')
 
-        file = str(self.file)[11:-6].lower().replace('.','').replace('_','-')
+        file = str(self.file)[11:-6].lower().replace('.', '').replace('_', '-')
 
         if dat[2] == '':
             dat = dat[empty_line_indxs[0] + 1:]
@@ -280,8 +330,6 @@ class Profile:
                     d1 = xs[indx + 2] - xs[indx + 1]
                     if d1 == 0:
                         xmin_indx = indx + 1
-                        xs.insert(xmin_indx, x)
-                        ys.insert(xmin_indx, ys[xmin_indx])
                         break
                     elif d1 > 0:
                         xmin_indx = indx
@@ -309,21 +357,22 @@ class Profile:
         xs_low = list(sorter.x)
         ys_low = list(sorter.y)
 
-        # Remove x duplicates by slightly increasing second.
+        # Remove x duplicates by neglibibly increasing second.
         for indx, x in enumerate(xs_up[:-1]):
             d = xs_up[indx + 1] - x
             if d > 0:
                 pass
             elif d == 0:
-                xs_up[indx + 1] = xs_up[indx + 1] + 0.000025
+                xs_up[indx + 1] = xs_up[indx + 1] + 0.00002
             elif d < 0:
                 break
+
         for indx, x in enumerate(xs_low[:-1]):
             d = xs_low[indx + 1] - x
             if d > 0:
                 pass
             elif d == 0:
-                xs_low[indx + 1] = xs_low[indx + 1] + 0.000025
+                xs_low[indx + 1] = xs_low[indx + 1] + 0.00002
             elif d < 0:
                 break
 
@@ -331,11 +380,11 @@ class Profile:
         for indx, x in enumerate(xs_up):
             if x > 5:
                 xs_up.remove(x)
-                xs_up.insert(indx, max(xs_up) + 0.000025)
+                xs_up.insert(indx, max(xs_up) + 0.00002)
         for indx, x in enumerate(xs_low):
             if x > 5:
                 xs_low.remove(x)
-                xs_low.insert(indx, max(xs_low) + 0.000025)
+                xs_low.insert(indx, max(xs_low) + 0.00002)
 
         # Set domain between 0 and 1.
         if min(xs_up) < 0:
@@ -386,14 +435,20 @@ class Profile:
         self.xy_profile = xy_profile
         return name, coords_up, coords_low, xy_profile
 
+
     def x_distribution(self):
+        """ """
+
         spline_xs_lin = np.linspace(0.0, math.pi, self.points)
         spline_xs = 0.5 * (1 - np.cos(spline_xs_lin))
 
         self.spline_xs = spline_xs
         return spline_xs
 
+
     def get_spline(self):
+        """ """
+
         spline_up = interp.Akima1DInterpolator(self.coords_up[0], self.coords_up[1])
         yfunc_up = spline_up(self.spline_xs)
         spline_func_up = [self.spline_xs, yfunc_up]
