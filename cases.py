@@ -5,7 +5,7 @@ import urllib.request as urllib2
 import pandas as pd
 
 
-def get_AFT_cases(directory='case_dat'):
+def get_AFT_cases(directory='dat/case_dat'):
     """ """
 
     baseFlpth = "http://airfoiltools.com"
@@ -62,7 +62,7 @@ def get_AFT_cases(directory='case_dat'):
     print(f'-Done. {indx} files copied from http://airfoiltools.com/search/airfoils and saved to ~/{directory}.')
 
 
-def get_RENNES_cases(directory='rennes_dat/case_dat'):
+def get_RENNES_cases(directory='dat/rennes_dat/case_dat'):
     baseFlpth = "https://perso.univ-rennes1.fr/laurent.blanchard/Profils/"
 
     html_all = urllib2.urlopen(baseFlpth).read()
@@ -166,12 +166,12 @@ def read_TXTcase(file):
     return name, Re, alphas, Cls, Cds
 
 
-def create_cases(directory='case_dat', ext='csv'):
+def create_cases(directory='dat/case_dat', ext='csv'):
     """ """
 
-    if directory == 'case_dat':
+    if directory == 'dat/case_dat':
         print('Creating Cases DataFrame...')
-    elif directory == 'rennes_dat/case_dat':
+    elif directory == 'dat/rennes_dat/case_dat':
         print('Creating Rennes Cases DataFrame...')
 
     cases_df = pd.DataFrame(columns=['file', 'Re', 'alpha', 'Cl', 'Cd'])
@@ -191,6 +191,20 @@ def create_cases(directory='case_dat', ext='csv'):
 
             except Exception as e:
                 pass  # print(e)
-    print(f'-Done. DataFrame created successfully with {len(cases_df)} cases.')
 
+    print(f'-Done. DataFrame created successfully with {len(cases_df)} cases.')
     return cases_df
+
+
+def save_cases(df, file):
+    print(f'Saving DataFrame to {file}...')
+    df.to_csv(file)
+    print('-Done.')
+
+
+def df_from_csv(file):
+    print(f'Extracting Cases DataFrame from {file}...')
+    df = pd.read_csv(file, index_col=0)
+
+    print(f'-Done. DataFrame extracted successfully with {len(df)} cases.')
+    return df
