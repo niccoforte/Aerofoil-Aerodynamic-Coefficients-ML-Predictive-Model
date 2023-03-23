@@ -316,8 +316,8 @@ def model_predict(model, test_in, true, test_df):
     return pred, Pmetrics_df, output_df
 
 
-def pred_metrics(Pmetrics_df, models, file='model-metrics.csv', df_from='current', df_add=False, df_save=False,
-                 prnt=False, plot=False):
+def pred_metrics(Pmetrics_df=None, models=None, file='results/model-metrics.csv', df_from='current',
+                 models_add=False, df_save=False, prnt=False, plot=False):
     print("Extracting metrics on the model's predictions...")
 
     if df_from == 'current':
@@ -340,7 +340,7 @@ def pred_metrics(Pmetrics_df, models, file='model-metrics.csv', df_from='current
         metrics_df = pd.Dataframe(columns=['name', 'ACC_cl', 'ACC_cd', 'ACC', 'MAE_cl', 'MAE_cd', 'MAE',
                                            'R2_cl', 'R2_cd', 'MSE_cl', 'MSE_cd', 'MSE', 'MAPE_cl', 'MAPE_cd', 'MAPE'])
 
-    if df_add:
+    if models_add:
         print('  Including models from "models" dictionary...')
         for name, model in models.items():
             new_row = model.Pmetrics_df
@@ -465,8 +465,8 @@ def train_metrics(models, mets, prnt=False, plot=False, df_from='current'):
     return fitHistory
 
 
-def predictions(output=None, name=None, re=None, file='predictions.csv', df_from='current', df_add=False, df_save=False,
-                plot=True, err=False):
+def predictions(output=None, name=None, re=None, file='results/predictions.csv', df_from='current', model_add=False,
+                df_save=False, plot=True, err=False):
     print("Handling model's predictions...")
 
     if df_from == 'current':
@@ -477,7 +477,7 @@ def predictions(output=None, name=None, re=None, file='predictions.csv', df_from
         print(f' From model(s) in {file}...')
         df = pd.read_csv(file, index_col=0)
 
-    if df_add:
+    if model_add:
         print('  Including new model predictions...')
         new_row = output
         df = pd.concat([df, new_row], ignore_index=True)
