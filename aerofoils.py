@@ -9,7 +9,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 
 
-def get_UIUC_foils(directory='aerofoil_dat'):
+def get_UIUC_foils(directory='dat/aerofoil_dat'):
     """Achieve all '.dat' files from UIUC aerofoil coordinate database and downloads to directory."""
 
     baseFlpth = "https://m-selig.ae.illinois.edu/ads/"
@@ -45,7 +45,7 @@ def get_UIUC_foils(directory='aerofoil_dat'):
           f'~/{directory}.')
 
 
-def get_AFT_foils(directory='aerofoil_dat'):
+def get_AFT_foils(directory='dat/aerofoil_dat'):
     """ """
 
     baseFlpth = "http://airfoiltools.com"
@@ -81,7 +81,7 @@ def get_AFT_foils(directory='aerofoil_dat'):
     print(f'-Done. {indx} files copied from http://airfoiltools.com/search/airfoils and saved to: ~/{directory}.')
 
 
-def get_RENNES_foils(directory='rennes_dat/aerofoil_dat'):
+def get_RENNES_foils(directory='dat/rennes_dat/aerofoil_dat'):
     baseFlpth = "https://perso.univ-rennes1.fr/laurent.blanchard/Profils/"
 
     html_all = urllib2.urlopen(baseFlpth).read()
@@ -124,7 +124,7 @@ def get_RENNES_foils(directory='rennes_dat/aerofoil_dat'):
     print(f'-Done. {indx} files copied from {baseFlpth} and saved to ~/{directory}.')
 
 
-def create_profiles(directory='aerofoil_dat', ext='dat', points=51, prnt=False):
+def create_profiles(directory='dat/aerofoil_dat', ext='dat', points=51, prnt=False):
     """Generates a list of profile objects from a directory containing given files.
 
     Parameters
