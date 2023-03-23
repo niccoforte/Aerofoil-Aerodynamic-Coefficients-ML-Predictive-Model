@@ -1,0 +1,14 @@
+  
+       XFOIL         Version 6.94
+  
+ Calculated polar for: nabab                                           
+  
+ 1 1 Reynolds number fixed          Mach number fixed         
+  
+ xtrf =   1.000 (top)        1.000 (bottom)  
+ Mach =   0.000     Re =     0.026 e 6     Ncrit =   9.000
+  
+  alpha     CL        CD       CDp       CM    Top_Xtr Bot_Xtr
+ ------- -------- --------- --------- -------- ------- -------
+  -3.000  -0.3805   0.05113   0.04092  -0.0068  0.9999  0.1767
+  -2.750  -0.3568   0.04813   0.03778  -0.0060  0.9999  0.1707
