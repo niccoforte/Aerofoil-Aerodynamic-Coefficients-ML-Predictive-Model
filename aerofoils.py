@@ -9,7 +9,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 
 
-def get_UIUC_foils(directory='dat/aerofoil_dat'):
+def get_UIUC_foils(directory='dat/aerofoil-dat'):
     """Achieve all '.dat' files from UIUC aerofoil coordinate database and downloads to directory."""
 
     baseFlpth = "https://m-selig.ae.illinois.edu/ads/"
@@ -45,7 +45,7 @@ def get_UIUC_foils(directory='dat/aerofoil_dat'):
           f'~/{directory}.')
 
 
-def get_AFT_foils(directory='dat/aerofoil_dat'):
+def get_AFT_foils(directory='dat/aerofoil-dat'):
     """ """
 
     baseFlpth = "http://airfoiltools.com"
@@ -81,7 +81,7 @@ def get_AFT_foils(directory='dat/aerofoil_dat'):
     print(f'-Done. {indx} files copied from http://airfoiltools.com/search/airfoils and saved to: ~/{directory}.')
 
 
-def get_RENNES_foils(directory='dat/rennes_dat/aerofoil_dat'):
+def get_RENNES_foils(directory='dat/rennes-dat/aerofoil-dat'):
     baseFlpth = "https://perso.univ-rennes1.fr/laurent.blanchard/Profils/"
 
     html_all = urllib2.urlopen(baseFlpth).read()
@@ -124,7 +124,7 @@ def get_RENNES_foils(directory='dat/rennes_dat/aerofoil_dat'):
     print(f'-Done. {indx} files copied from {baseFlpth} and saved to ~/{directory}.')
 
 
-def create_profiles(directory='dat/aerofoil_dat', ext='dat', points=51, prnt=False):
+def create_profiles(directory='dat/aerofoil-dat', ext='dat', points=51, prnt=False):
     """Generates a list of profile objects from a directory containing given files.
 
     Parameters
@@ -143,9 +143,9 @@ def create_profiles(directory='dat/aerofoil_dat', ext='dat', points=51, prnt=Fal
     list of Profile, pd.DataFrame
     """
 
-    if directory == 'dat/aerofoil_dat':
+    if directory == 'dat/aerofoil-dat':
         print('Creating Aerofoils DataFrame...')
-    elif directory == 'dat/rennes_dat/aerofoil_dat':
+    elif directory == 'dat/rennes-dat/aerofoil-dat':
         print('Creating Rennes Aerofoils DataFrame...')
 
     aerofoils_df = pd.DataFrame(columns=['name', 'file', 'x', 'y_up', 'y_low', 'spline', 'xy_profile'])
@@ -170,7 +170,7 @@ def create_profiles(directory='dat/aerofoil_dat', ext='dat', points=51, prnt=Fal
     return profiles, aerofoils_df
 
 
-def plot_profile(df, indx, scatt=False, x_val=None, pltfig=1):
+def plot_profile(df, indx, scatt=False, x_val=None, pltfig=1, ax=None, prnt=False):
     """Plots the profile of a given aerofoil.
 
     Parameters
@@ -189,19 +189,27 @@ def plot_profile(df, indx, scatt=False, x_val=None, pltfig=1):
 
     print(f'Plotting {df.name[indx]} ...')
 
-    plt.figure(pltfig)
-    plt.title(df.name[indx].capitalize())
-    plt.plot(df.x[indx], df.y_low[indx])
-    plt.plot(df.x[indx], df.y_up[indx])
-    plt.ylim([min(df.y_low[indx]) - 0.15, max(df.y_up[indx]) + 0.15])
-    plt.grid()
+    if prnt:
+        print(f'Plotting {df.name[indx]} ...')
+
+    if ax is None:
+        fig = plt.figure(pltfig)
+        ax = fig.subplots(1, 1)
+
+    ax.set_title(df.name[indx].upper(), fontsize=15, fontname="Times New Roman", fontweight='bold')
+    ax.plot(df.x[indx], df.y_low[indx])
+    ax.plot(df.x[indx], df.y_up[indx])
+    ax.set_ylim([min(df.y_low[indx]) - 0.15, max(df.y_up[indx]) + 0.15])
+    ax.grid()
 
     if scatt:
-        print(' Including scatter of original x - y coordinates.')
-        plt.scatter(df.xy_profile[indx][0], df.xy_profile[indx][1], s=5)
+        if prnt:
+            print(' Including scatter of original x - y coordinates.')
+
+        ax.scatter(df.xy_profile[indx][0], df.xy_profile[indx][1], s=5)
 
     if x_val:
-        print(f' and evaluating y coordinates at x={x_val}...')
+        print(f' Evaluating {df.name[indx]} y coordinates at x={x_val}...')
 
         splines = df.spline[indx]
         spline_up = splines[0]
@@ -209,12 +217,11 @@ def plot_profile(df, indx, scatt=False, x_val=None, pltfig=1):
 
         y_val_up = spline_up(x_val)
         y_val_low = spline_low(x_val)
-        print(f'  y_up = {y_val_up.round(5)} and y_low = {y_val_low.round(5)}.')
+        print(f' y_up = {y_val_up.round(5)} and y_low = {y_val_low.round(5)}.')
 
-        plt.figure(pltfig)
-        plt.plot(x_val, y_val_up, marker='o', color='orangered')
-        plt.plot(x_val, y_val_low, marker='o', color='orangered')
-        plt.axvline(x=x_val, color='orangered')
+        ax.plot(x_val, y_val_up, marker='o', color='orangered')
+        ax.plot(x_val, y_val_low, marker='o', color='orangered')
+        ax.axvline(x=x_val, color='orangered')
 
     plt.show()
 

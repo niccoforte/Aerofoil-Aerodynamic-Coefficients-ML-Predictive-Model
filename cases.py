@@ -5,7 +5,7 @@ import urllib.request as urllib2
 import pandas as pd
 
 
-def get_AFT_cases(directory='dat/case_dat'):
+def get_AFT_cases(directory='dat/case-dat'):
     """ """
 
     baseFlpth = "http://airfoiltools.com"
@@ -62,7 +62,7 @@ def get_AFT_cases(directory='dat/case_dat'):
     print(f'-Done. {indx} files copied from http://airfoiltools.com/search/airfoils and saved to ~/{directory}.')
 
 
-def get_RENNES_cases(directory='dat/rennes_dat/case_dat'):
+def get_RENNES_cases(directory='dat/rennes-dat/case-dat'):
     baseFlpth = "https://perso.univ-rennes1.fr/laurent.blanchard/Profils/"
 
     html_all = urllib2.urlopen(baseFlpth).read()
@@ -166,12 +166,12 @@ def read_TXTcase(file):
     return name, Re, alphas, Cls, Cds
 
 
-def create_cases(directory='dat/case_dat', ext='csv'):
+def create_cases(directory='dat/case-dat', ext='csv'):
     """ """
 
-    if directory == 'dat/case_dat':
+    if directory == 'dat/case-dat':
         print('Creating Cases DataFrame...')
-    elif directory == 'dat/rennes_dat/case_dat':
+    elif directory == 'dat/rennes-dat/case-dat':
         print('Creating Rennes Cases DataFrame...')
 
     cases_df = pd.DataFrame(columns=['file', 'Re', 'alpha', 'Cl', 'Cd'])

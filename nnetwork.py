@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import random
+import aerofoils
 
 import tensorflow as tf
 from tensorflow import keras
@@ -471,8 +472,8 @@ def train_metrics(models, mets, df_from='current', prnt=False, plot=False):
     return fitHistory
 
 
-def predictions(output=None, name=None, re=None, file='results/predictions.csv', df_from='current', model_add=False,
-                df_save=False, plot=True, err=False):
+def predictions(aerofoils_df, output=None, name=None, re=None, file='results/predictions.csv', df_from='current',
+                model_add=False, df_save=False, plot=True, err=False):
     print("Handling model's predictions...")
 
     if df_from == 'current':
@@ -560,6 +561,9 @@ def predictions(output=None, name=None, re=None, file='results/predictions.csv',
             axs10.bar(a, err, width=(max(a) - min(a)) / len(a), alpha=0.1, label='Error')
             axs10.set_ylim(0, 1.5 * max(err))
             axs10.legend(bbox_to_anchor=(0.25, 1))
+
+        aindx = aerofoils_df.loc[aerofoils_df['file'] == name].index[0]
+        aerofoils.plot_profile(aerofoils_df, aindx, scatt=False, x_val=False, ax=axs[1, 1], prnt=False)
 
         plt.show()
 
