@@ -143,9 +143,9 @@ def create_profiles(directory='dat/aerofoil_dat', ext='dat', points=51, prnt=Fal
     list of Profile, pd.DataFrame
     """
 
-    if directory == 'aerofoil_dat':
+    if directory == 'dat/aerofoil_dat':
         print('Creating Aerofoils DataFrame...')
-    elif directory == 'rennes_dat/aerofoil_dat':
+    elif directory == 'dat/rennes_dat/aerofoil_dat':
         print('Creating Rennes Aerofoils DataFrame...')
 
     aerofoils_df = pd.DataFrame(columns=['name', 'file', 'x', 'y_up', 'y_low', 'spline', 'xy_profile'])

@@ -267,7 +267,7 @@ def run_Model(data, neurons, activation, test_df, mod='mlp_tf', EPOCHS=50, BATCH
 
         models[name] = model
 
-    print('-Done. Model(s) saved in "models" disctionary.')
+    print('-Done. Model(s) saved in "models" distionary.')
     return models
 
 
@@ -403,7 +403,7 @@ def pred_metrics(Pmetrics_df=None, models=None, file='results/model-metrics.csv'
     return metrics_df
 
 
-def train_metrics(models, mets, prnt=False, plot=False, df_from='current'):
+def train_metrics(models, mets, df_from='current', prnt=False, plot=False):
     print("Extracting metrics from the model's training...")
 
     if df_from == 'current':
@@ -446,7 +446,10 @@ def train_metrics(models, mets, prnt=False, plot=False, df_from='current'):
             axs[0, i].set_xlabel('Epoch', fontsize=11, fontname="Times New Roman")
             axs[0, i].set_yscale('log')
             for name, model in models.items():
-                axs[0, i].plot(model.fitHistory.history.get(f'val_{mets[0]}'), label=f'{name} {cat} {mets[0].upper()}')
+                if cat == 'Training':
+                    axs[0, i].plot(model.fitHistory.history.get(f'{mets[0]}'), label=f'{name} {cat} {mets[0].upper()}')
+                elif cat == 'Validation':
+                    axs[0, i].plot(model.fitHistory.history.get(f'val_{mets[0]}'), label=f'{name} {cat} {mets[0].upper()}')
             axs[0, i].legend()
 
         for i, cat in zip([0, 1], ['Training', 'Validation']):
@@ -456,7 +459,10 @@ def train_metrics(models, mets, prnt=False, plot=False, df_from='current'):
             axs[1, i].set_xlabel('Epoch', fontsize=11, fontname="Times New Roman")
             axs[1, i].set_yscale('log')
             for name, model in models.items():
-                axs[1, i].plot(model.fitHistory.history.get(f'val_{mets[1]}'), label=f'{name} {cat} {mets[1].upper()}')
+                if cat == 'Training':
+                    axs[1, i].plot(model.fitHistory.history.get(f'{mets[1]}'), label=f'{name} {cat} {mets[1].upper()}')
+                elif cat == 'Validation':
+                    axs[1, i].plot(model.fitHistory.history.get(f'val_{mets[1]}'), label=f'{name} {cat} {mets[1].upper()}')
             axs[1, i].legend()
 
         plt.show()

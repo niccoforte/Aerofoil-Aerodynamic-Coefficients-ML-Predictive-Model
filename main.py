@@ -60,12 +60,12 @@ pred, Pmetrics_df, output_df = nnetwork.model_predict(model=model, test_in=test_
 
 
 # Prediction and training metrics.
-fitHistory = nnetwork.train_metrics(models=models, mets=['loss', 'ACC'], prnt=True, plot=True, df_from='current')
+fitHistory = nnetwork.train_metrics(models=models, mets=['loss', 'ACC'], df_from='current', prnt=True, plot=True)
 metrics_df = nnetwork.pred_metrics(Pmetrics_df, models, file='results/model-metrics.csv', df_from='current',
                                    models_add=False, df_save=False, prnt=True, plot=True)
 
 # Predictions.
-NAMEs, REs, plot_df = nnetwork.predictions(output=output_df, name=output_df.file.tolist()[0], re=200000.0, file='results/predictions.csv',
+NAMEs, REs, plot_df = nnetwork.predictions(output=output_df, name='goe565', re=200000.0, file='results/predictions.csv',
                                            df_from='current', model_add=False, df_save=False, plot=True, err=True)
 
 
