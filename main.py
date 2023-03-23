@@ -6,21 +6,25 @@ import pandas as pd
 
 
 # Download aerofoil .dat files to 'aerofoil_dat' directory and case .csv files to 'case_dat' directory.
-aerofoils.get_UIUC_foils(directory='aerofoil_dat')
-aerofoils.get_AFT_foils(directory='aerofoil_dat')
-aerofoils.get_RENNES_foils(directory='rennes_dat/aerofoil_dat')
-cases.get_AFT_cases(directory='case_dat')
-cases.get_RENNES_cases(directory='rennes_dat/case_dat')
+aerofoils.get_UIUC_foils(directory='dat/aerofoil_dat')
+aerofoils.get_AFT_foils(directory='dat/aerofoil_dat')
+aerofoils.get_RENNES_foils(directory='dat/rennes_dat/aerofoil_dat')
+cases.get_AFT_cases(directory='dat/case_dat')
+cases.get_RENNES_cases(directory='dat/rennes_dat/case_dat')
 
 
 # Create dictionary of Profile objects and Aerofoils DataFrame.
-profiles, aerofoils_df = aerofoils.create_profiles(points=51, prnt=False)
-ren_profiles, ren_aerofoils_df = aerofoils.create_profiles(directory='rennes_dat/aerofoil_dat', points=51, prnt=False)
+profiles, aerofoils_df = aerofoils.create_profiles(directory='dat/aerofoil_dat', points=51, prnt=False)
+ren_profiles, ren_aerofoils_df = aerofoils.create_profiles(directory='dat/rennes_dat/aerofoil_dat', points=51, prnt=False)
 
 
 # Create DataFrame of case data.
-cases_df = cases.create_cases(directory='case_dat', ext='csv')
-ren_cases_df = cases.create_cases(directory='rennes_dat/case_dat', ext='txt')
+#cases_df = cases.create_cases(directory='dat/case_dat', ext='csv')
+#cases.save_cases(df=cases_df, file='dat-saved/cases-df')
+#ren_cases_df = cases.create_cases(directory='dat/rennes_dat/case_dat', ext='txt')
+#cases.save_cases(df=ren_cases_df, file='dat-saved/ren-cases-df')
+cases_df = cases.df_from_csv(file='dat-saved/cases-df')
+ren_cases_df = cases.df_from_csv(file='dat-saved/ren-cases-df')
 
 
 # Merge aerofoils and cases dataframes.
@@ -57,12 +61,12 @@ pred, Pmetrics_df, output_df = nnetwork.model_predict(model=model, test_in=test_
 
 # Prediction and training metrics.
 fitHistory = nnetwork.train_metrics(models=models, mets=['loss', 'ACC'], prnt=True, plot=True, df_from='current')
-metrics_df = nnetwork.pred_metrics(Pmetrics_df, models, file='model-metrics.csv', df_from='current',
-                                   df_add=False, df_save=False, prnt=True, plot=True)
+metrics_df = nnetwork.pred_metrics(Pmetrics_df, models, file='results/model-metrics.csv', df_from='current',
+                                   models_add=False, df_save=False, prnt=True, plot=True)
 
 # Predictions.
-NAMEs, REs, plot_df = nnetwork.predictions(output=output_df, name=output_df.file.tolist()[0], re=200000.0, file='predictions.csv',
-                                           df_from='current', df_add=False, df_save=False, plot=True, err=True)
+NAMEs, REs, plot_df = nnetwork.predictions(output=output_df, name=output_df.file.tolist()[0], re=200000.0, file='results/predictions.csv',
+                                           df_from='current', model_add=False, df_save=False, plot=True, err=True)
 
 
 # ===========================================================================
@@ -71,5 +75,5 @@ NAMEs, REs, plot_df = nnetwork.predictions(output=output_df, name=output_df.file
 #print(data_df)
 
 # ----- Aerofoil Plots
-#aindx = aerofoils_df.loc[aerofoils_df['file'] == 'goe10k'].index[0]
+#aindx = aerofoils_df.loc[aerofoils_df.file == 'goe10k'].index[0]
 #aerofoils.plot_profile(aerofoils_df, aindx, scatt=False, x_val=None, pltfig=1)
