@@ -187,8 +187,6 @@ def plot_profile(df, indx, scatt=False, x_val=None, pltfig=1, ax=None, prnt=Fals
         Figure on which to plot when plotting multiple aerofoils at once.
     """
 
-    print(f'Plotting {df.name[indx]} ...')
-
     if prnt:
         print(f'Plotting {df.name[indx]} ...')
 

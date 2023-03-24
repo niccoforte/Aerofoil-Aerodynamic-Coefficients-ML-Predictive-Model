@@ -1,8 +1,7 @@
 import pandas as pd
 import numpy as np
+import matplotlib.ticker as mticker
 import matplotlib.pyplot as plt
-import math
-import random
 import aerofoils
 
 import tensorflow as tf
@@ -15,63 +14,7 @@ from keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
-from sklearn.utils import shuffle
 from sklearn.metrics import r2_score
-
-
-def get_data(df, profiles, nTrain=100, nTest=50):
-    print('Arranging and preparing data for NN inputs and outputs...')
-
-    NNdata_df = df.drop(columns=['spline', 'xy_profile'])
-
-    if len(df) > 50000:
-        indxs1 = [random.randint(0, len(profiles)-1) for i in range(nTrain)]
-        names1 = [list(profiles.keys())[indx] for indx in indxs1]
-
-        # naca_df = NNdata_df[NNdata_df.file.str.contains('naca')]
-        train_df = shuffle(NNdata_df[NNdata_df.file.str.contains("|".join(names1))])  # [:35515] #.sample(frac=0.8))
-        train_df = train_df[~train_df.file.str.contains('goe')]
-        # train_df = train_df[train_df.file != 'goe233']
-        train_df = train_df[train_df.Re != 200000]
-
-        # indxs2 = [random.randint(0, len(profiles-1)) for i in range(nTest)]
-        # names2 = [list(profiles.keys())[indx] for indx in indxs2 if indx not in indxs1]
-
-        # test_df = NNdata_df[~NNdata_df.index.isin(train_df.index)]
-        test_df = NNdata_df[NNdata_df['file'].str.contains('goe')]  # "|".join(names2))]
-        # test_df = NNdata_df[NNdata_df.file == 'goe233']
-        test_df = test_df[test_df.Re == 200000]
-
-    elif len(df) < 50000:
-        train_df = NNdata_df
-        test_df = NNdata_df  # [NNdata_df.file == 'tilt']
-
-    return train_df, test_df
-
-
-def prep_data(data):
-    train_in = np.array([[0.0 if math.isnan(y) else y for y in ys_up] +
-                         [0.0 if math.isnan(y) else y for y in ys_low] +
-                         [float(Re)] + [float(alpha)] for ys_up, ys_low, Re, alpha in
-                         zip(data[0].y_up.tolist(), data[0].y_low.tolist(), data[0].Re.tolist(),
-                             data[0].alpha.tolist())],
-                        dtype='float32')
-
-    train_out = np.array([[float(cl), float(cd)] for cl, cd in zip(data[0].Cl.tolist(), data[0].Cd.tolist())],
-                         dtype='float32')
-
-    test_in = np.array([[0.0 if math.isnan(y) else y for y in ys_up] +
-                        [0.0 if math.isnan(y) else y for y in ys_low] +
-                        [float(Re)] + [float(alpha)] for ys_up, ys_low, Re, alpha in
-                        zip(data[1].y_up.tolist(), data[1].y_low.tolist(), data[1].Re.tolist(),
-                            data[1].alpha.tolist())],
-                       dtype='float32')
-
-    test_out = np.array([[float(cl), float(cd)] for cl, cd in zip(data[1].Cl.tolist(), data[1].Cd.tolist())],
-                        dtype='float32')
-
-    print(f'-Done. Data successfully formatted into {len(train_in)} inputs & {len(train_out)} outputs.')
-    return train_in, train_out, test_in, test_out
 
 
 def accuracy(y_true, y_pred):
@@ -371,8 +314,9 @@ def pred_metrics(Pmetrics_df=None, models=None, file='results/model-metrics.csv'
         fig = plt.figure(0)
         fig.suptitle('PREDICTION METRICS', fontsize=16, fontname="Times New Roman", fontweight='bold')
         fig.set_figheight(7)
-        fig.set_figwidth(20)
+        fig.set_figwidth(15)
         axs = fig.subplots(2, 2)
+        fig.tight_layout(pad=4, h_pad=3.5, w_pad=7)
 
         rels = [[list(metrics_df.ACC_cl), list(metrics_df.ACC_cd), list(metrics_df.ACC)],
                 [list(metrics_df.MAE_cl), list(metrics_df.MAE_cd), list(metrics_df.MAE)],
@@ -392,7 +336,7 @@ def pred_metrics(Pmetrics_df=None, models=None, file='results/model-metrics.csv'
             for lst, col, label in zip(rel, cols, labels):
                 offset = w * m
                 bars = axs[i, j].bar(x + offset, lst, color=col, width=w, label=label)
-                axs[i, j].bar_label(bars, padding=1, fontsize=10, fontname="Times New Roman")
+                axs[i, j].bar_label(bars, padding=0, fontsize=7, fontname="Times New Roman")
                 m += 1
             axs[i, j].legend()
             axs[i, j].set_xticks(x + w)
@@ -423,12 +367,10 @@ def train_metrics(models, mets, df_from='current', prnt=False, plot=False):
         for name, model in models.items():
             print(f'   Model: {name}')
             min1 = min(list(model.fitHistory.history.get(f'val_{mets[0]}')))
-            avg1 = sum(list(model.fitHistory.history.get(f'val_{mets[0]}'))) / len(
-                list(model.fitHistory.history.get(f'val_{mets[0]}')))
+            avg1 = sum(list(model.fitHistory.history.get(f'val_{mets[0]}'))) / len(list(model.fitHistory.history.get(f'val_{mets[0]}')))
             print(f'   VALIDATION {mets[0].upper()}:  Lowerst: {min1}, Average: {avg1}.')
             min2 = max(list(model.fitHistory.history.get(f'val_{mets[1]}')))
-            avg2 = sum(list(model.fitHistory.history.get(f'val_{mets[1]}'))) / len(
-                list(model.fitHistory.history.get(f'val_{mets[1]}')))
+            avg2 = sum(list(model.fitHistory.history.get(f'val_{mets[1]}'))) / len(list(model.fitHistory.history.get(f'val_{mets[1]}')))
             print(f'   VALIDATION {mets[1].upper()}:  Highest: {min2}, Average: {avg2}.')
             print(f'   EVALUATE:        Train: {model.trainEv}, \n                    Test:  {model.testEv}.')
 
@@ -437,8 +379,9 @@ def train_metrics(models, mets, df_from='current', prnt=False, plot=False):
         fig = plt.figure(1)
         fig.suptitle('TRAINING & VALIDATION METRICS', fontsize=16, fontname="Times New Roman", fontweight='bold')
         fig.set_figheight(7)
-        fig.set_figwidth(20)
+        fig.set_figwidth(15)
         axs = fig.subplots(2, 2)
+        fig.tight_layout(pad=4, h_pad=3.5, w_pad=7)
 
         for i, cat in zip([0, 1], ['Training', 'Validation']):
             axs[0, i].set_title(f'{cat} {mets[0].upper()} v. Epochs', fontsize=15, fontname="Times New Roman",
@@ -458,7 +401,7 @@ def train_metrics(models, mets, df_from='current', prnt=False, plot=False):
                                 fontweight='bold')
             axs[1, i].set_ylabel(f'{mets[1].upper()}', fontsize=12, fontname="Times New Roman")
             axs[1, i].set_xlabel('Epoch', fontsize=11, fontname="Times New Roman")
-            axs[1, i].set_yscale('log')
+            #axs[1, i].set_yscale('log')
             for name, model in models.items():
                 if cat == 'Training':
                     axs[1, i].plot(model.fitHistory.history.get(f'{mets[1]}'), label=f'{name} {cat} {mets[1].upper()}')
@@ -505,11 +448,11 @@ def predictions(aerofoils_df, output=None, name=None, re=None, file='results/pre
         print('  And plotting predictions...')
         fig1 = plt.figure(2)
         fig1.set_figheight(7)
-        fig1.set_figwidth(20)
+        fig1.set_figwidth(15)
         fig1.suptitle(plot_df.name.tolist()[0].upper() + ' || Re = {:,}'.format(int(plot_df.Re.tolist()[0])),
                       fontsize=18, fontname="Times New Roman", fontweight='bold')
         axs = fig1.subplots(2, 2)
-        fig1.tight_layout(pad=2, h_pad=3.5, w_pad=8)
+        fig1.tight_layout(pad=4, h_pad=3.5, w_pad=7)
 
         axs[0, 0].set_title('Lift Coefficient v. Angle of Attack', fontsize=15, fontname="Times New Roman",
                             fontweight='bold')
@@ -518,7 +461,7 @@ def predictions(aerofoils_df, output=None, name=None, re=None, file='results/pre
         a, t, p = plot_df.alpha.tolist(), plot_df.Cl.tolist(), plot_df.Cl_pred.tolist()
         axs[0, 0].plot(a, p, '--', lw=1, marker='o', markersize=2, label='Predicted')
         axs[0, 0].plot(a, t, lw=1, marker='o', markersize=2, label='True')
-        axs[0, 0].legend(bbox_to_anchor=(0.15, 1))
+        axs[0, 0].legend(bbox_to_anchor=(0.25, 1))
 
         if err:
             axs00 = axs[0, 0].twinx()
@@ -526,7 +469,7 @@ def predictions(aerofoils_df, output=None, name=None, re=None, file='results/pre
             err = [np.abs(tt - pp) for tt, pp in zip(t, p)]
             axs00.bar(a, err, width=(max(a) - min(a)) / len(a), alpha=0.1, label='Error')
             axs00.set_ylim(0, 1.5 * max(err))
-            axs00.legend(bbox_to_anchor=(0.25, 1))
+            axs00.legend(bbox_to_anchor=(0.25, 0.75))
 
         axs[0, 1].set_title('Lift Coefficient v. Angle of Attack', fontsize=15, fontname="Times New Roman",
                             fontweight='bold')
@@ -535,7 +478,7 @@ def predictions(aerofoils_df, output=None, name=None, re=None, file='results/pre
         a, t, p = plot_df.alpha.tolist(), plot_df.Cd.tolist(), plot_df.Cd_pred.tolist()
         axs[0, 1].plot(a, p, '--', lw=1, marker='o', markersize=2, label='Predicted')
         axs[0, 1].plot(a, t, lw=1, marker='o', markersize=2, label='True')
-        axs[0, 1].legend(bbox_to_anchor=(0.3, 1))
+        axs[0, 1].legend(bbox_to_anchor=(0.55, 1))
 
         if err:
             axs01 = axs[0, 1].twinx()
@@ -543,7 +486,7 @@ def predictions(aerofoils_df, output=None, name=None, re=None, file='results/pre
             err = [np.abs(tt - pp) for tt, pp in zip(t, p)]
             axs01.bar(a, err, width=(max(a) - min(a)) / len(a), alpha=0.1, label='Error')
             axs01.set_ylim(0, 1.5 * max(err))
-            axs01.legend(bbox_to_anchor=(0.4, 1))
+            axs01.legend(bbox_to_anchor=(0.55, 0.75))
 
         axs[1, 0].set_title('Lift to Drag Ratio v. Angle of Attack', fontsize=15, fontname="Times New Roman",
                             fontweight='bold')
@@ -552,7 +495,7 @@ def predictions(aerofoils_df, output=None, name=None, re=None, file='results/pre
         a, t, p = plot_df.alpha.tolist(), plot_df.LtD.tolist(), plot_df.LtD_pred.tolist()
         axs[1, 0].plot(a, p, '--', lw=1, marker='o', markersize=2, label='Predicted')
         axs[1, 0].plot(a, t, lw=1, marker='o', markersize=2, label='True')
-        axs[1, 0].legend(bbox_to_anchor=(0.15, 1))
+        axs[1, 0].legend(bbox_to_anchor=(0.25, 1))
 
         if err:
             axs10 = axs[1, 0].twinx()
@@ -560,7 +503,7 @@ def predictions(aerofoils_df, output=None, name=None, re=None, file='results/pre
             err = [np.abs(tt - pp) for tt, pp in zip(t, p)]
             axs10.bar(a, err, width=(max(a) - min(a)) / len(a), alpha=0.1, label='Error')
             axs10.set_ylim(0, 1.5 * max(err))
-            axs10.legend(bbox_to_anchor=(0.25, 1))
+            axs10.legend(bbox_to_anchor=(0.25, 0.75))
 
         aindx = aerofoils_df.loc[aerofoils_df['file'] == name].index[0]
         aerofoils.plot_profile(aerofoils_df, aindx, scatt=False, x_val=False, ax=axs[1, 1], prnt=False)
