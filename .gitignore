@@ -1,4 +1,5 @@
 .DS_Store
+.gitignore
 .idea/
 __pycache__/
 .git/
