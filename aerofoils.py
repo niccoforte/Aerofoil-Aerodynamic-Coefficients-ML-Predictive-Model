@@ -1,16 +1,24 @@
 import os
 import re
-import math
+from bs4 import BeautifulSoup
 import urllib.request as urllib2
+
 import numpy as np
+import math
 import scipy.interpolate as interp
 from matplotlib import pyplot as plt
 import pandas as pd
-from bs4 import BeautifulSoup
 
 
 def get_UIUC_foils(directory='dat/aerofoil-dat'):
-    """Achieve all '.dat' files from UIUC aerofoil coordinate database and downloads to directory."""
+    """Achieves all aerofoil coordinate files from the UIUC Airfoil Coordinate Database and downloads them to a
+    specified directory.
+
+    Parameters
+    ----------
+    directory : str, default 'dat/aerofoil-dat'
+        Direcotry path where to download the '.dat' coordinate files.
+    """
 
     baseFlpth = "https://m-selig.ae.illinois.edu/ads/"
 
@@ -46,7 +54,14 @@ def get_UIUC_foils(directory='dat/aerofoil-dat'):
 
 
 def get_AFT_foils(directory='dat/aerofoil-dat'):
-    """ """
+    """Achieves all aerofoil coordinate files from the Airfoil Tools Airfoil Database and downloads them to a
+    specified directory.
+
+    Parameters
+    ----------
+    directory : str, default 'dat/aerofoil-dat'
+        Direcotry path where to download the '.dat' coordinate files.
+    """
 
     baseFlpth = "http://airfoiltools.com"
 
@@ -82,6 +97,15 @@ def get_AFT_foils(directory='dat/aerofoil-dat'):
 
 
 def get_RENNES_foils(directory='dat/rennes-dat/aerofoil-dat'):
+    """Achieves all aerofoil coordinate files from a study conducted by the Université de Rennes and downloads them to
+    a specified directory.
+
+    Parameters
+    ----------
+    directory : str, default 'dat/rennes-dat/aerofoil-dat'
+        Direcotry path where to download the '.dat' coordinate files.
+    """
+
     baseFlpth = "https://perso.univ-rennes1.fr/laurent.blanchard/Profils/"
 
     html_all = urllib2.urlopen(baseFlpth).read()
@@ -118,29 +142,33 @@ def get_RENNES_foils(directory='dat/rennes-dat/aerofoil-dat'):
 
                 indx += 1
 
-        except Exception as e:
-            pass  # print(e)
+        except:
+            pass
 
     print(f'-Done. {indx} files copied from {baseFlpth} and saved to ~/{directory}.')
 
 
 def create_profiles(directory='dat/aerofoil-dat', ext='dat', points=51, prnt=False):
-    """Generates a list of profile objects from a directory containing given files.
+    """Generates a dictionary of Profile names and objects and a Pandas DataFrame where rows contain elements of
+    Profiles from a directory containing given coordinate files.
 
     Parameters
     ----------
-    directory : str
-        Directory in the project workspace that contains the files to be upoaded.
-    ext : str
-        Extension of the files.
-    points : int
-        Points at which to evaluate the splines of the aerofoils.
-    prnt : bool
+    directory : str, default 'dat/aerofoil-dat'
+        Directory path that contains the aerofoil geometry coordinate files.
+    ext : str, default 'dat'
+        Extension of the relevant files in the directory.
+    points : int, default 51
+        Number of cosine-spaced points used to re-create the upper and lower aerofoil profile surfaces.
+    prnt : bool, default False
         Print log as profile objects are created.
 
     Returns
     -------
-    list of Profile, pd.DataFrame
+    profiles : dict
+        Dictionary of aerofoil profile names and objects.
+    aerofoils_df : pandas.DataFrame
+        DataFrame of name, filename, x, y_up, y_low coordinates, spline functions, and xy_profiles for profile objects.
     """
 
     if directory == 'dat/aerofoil-dat':
@@ -157,9 +185,9 @@ def create_profiles(directory='dat/aerofoil-dat', ext='dat', points=51, prnt=Fal
                 file_name = str(p.file)
                 profiles[file_name] = p
 
-                new_row = pd.DataFrame(
-                    {'name': [p.name], 'file': [p.file], 'x': [p.spline_funcs[0][0]], 'y_up': [p.spline_funcs[0][1]],
-                     'y_low': [p.spline_funcs[1][1]], 'spline': [p.splines], 'xy_profile': [p.xy_profile]})
+                new_row = pd.DataFrame({'name': [p.name], 'file': [p.file], 'x': [p.spline_funcs[0][0]],
+                                        'y_up': [p.spline_funcs[0][1]], 'y_low': [p.spline_funcs[1][1]],
+                                        'spline': [p.splines], 'xy_profile': [p.xy_profile]})
                 aerofoils_df = pd.concat([aerofoils_df, new_row], ignore_index=True)
 
             except Exception as e:
@@ -175,16 +203,20 @@ def plot_profile(df, indx, scatt=False, x_val=None, pltfig=1, ax=None, prnt=Fals
 
     Parameters
     ----------
-    df : pandas DataFrame
-        Dataframe containing the aerofoils' data.
+    df : pandas.DataFrame
+        DataFrame containing the aerofoils' profiles.
     indx : int
-        Index of the aerofoil to be plotted.
-    scatt : bool or None
+        Index in df of the aerofoil to be plotted.
+    scatt : bool, defalut False
         Includes scatterplot of original coordinates.
     x_val : float, optional
-        x-value to be plotted along with the aerofoil.
-    pltfig : int
+        x-value at which to evaluate upper and lower profile y-coordinates.
+    pltfig : int, default 1
         Figure on which to plot when plotting multiple aerofoils at once.
+    ax : matplotlib.pyplot.axes, optional
+        Axes on which to plot when plotting on subplots.
+    prnt : bool, default False
+        Print log as profile is being plotted.
     """
 
     if prnt:
@@ -224,18 +256,94 @@ def plot_profile(df, indx, scatt=False, x_val=None, pltfig=1, ax=None, prnt=Fals
     plt.show()
 
 
+def aerofoil_difference(df, name1, name2, plot=False):
+    """Evaluates the difference between two aerofoil profile geometries.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame containing the aerofoils' profiles.
+    name1 : str
+        Filename of first aerofoil profile.
+    name2 : str
+        Filename of second aerofoil profile.
+    plot : bool, default False
+        Plot profiles of aerofoils between which difference is evaluated.
+
+    Returns
+    -------
+    d : float
+        Sum of the absolute difference between all corresponding coordinates of the two aerofoil profiles.
+    """
+
+    y_up1, y_low1 = df[df.file == name1].y_up.tolist()[0], df[df.file == name1].y_low.tolist()[0]
+    y_up2, y_low2 = df[df.file == name2].y_up.tolist()[0], df[df.file == name2].y_low.tolist()[0]
+
+    du_tip = 0
+    dl_tip = 0
+    for u1, l1, u2, l2 in zip(y_up1[:23], y_low1[:23], y_up2[:23], y_low2[:23]):
+        _du = u2 - u1
+        _dl = -(l2 - l1)
+        du_tip += _du
+        dl_tip += _dl
+    d_tip = du_tip - dl_tip
+
+    du_tail = 0
+    dl_tail = 0
+    for u1, l1, u2, l2 in zip(y_up1[23:], y_low1[23:], y_up2[23:], y_low2[23:]):
+        _du = u2 - u1
+        _dl = -(l2 - l1)
+        du_tail += _du
+        dl_tail += _dl
+    d_tail = du_tail - dl_tail
+
+    d = abs(du_tip) + abs(dl_tip) + abs(du_tail) + abs(dl_tail)
+
+    if plot:
+        ind1 = df[df.file == name1].index[0]
+        plot_profile(df, ind1, scatt=False, x_val=None, pltfig=1, prnt=False)
+        ind2 = df[df.file == name2].index[0]
+        plot_profile(df, ind2, scatt=False, x_val=None, pltfig=2, prnt=False)
+
+    return d
+
+
 class Profile:
-    """Represents the profile of an aerofoil given from a set of datapoints. Fits a cubic spline and re-evaluates the
+    """Represents the profile of an aerofoil given from a set of datapoints. Fits a smooth spline and re-evaluates the
     datapoints as necessary for precision and consistency.
+
+    Parameters
+    ----------
+    file : str
+        Path to aerofoil coordinate file.
+    points : int, default 51
+        Number of cosine-spaced points used to recreate the upper and lower aerofoil profile surfaces.
+    prnt : bool, default False
+        Print log as profile objects are created.
 
     Attributes
     ----------
-    file : .dat
-        UIUC aerofoil coordinate file.
-    points : int
-        Points at which to evaluate the splines of the aerofoils.
-    prnt : bool
-        Print log as profile objects are created.
+    name : str
+        Aerofoil name.
+    file : str
+        Aerofoil filename.
+    coords_up : list
+        Upper profile surface raw x and y coordinates.
+    coords_low : list
+        Lower profile surface raw x and y coordinates.
+    x : list
+        Full set of raw upper and lower profile x coordinates.
+    y : list
+        Full set of raw upper and lower profile y coordinates.
+    xy_profile : list
+        x and y united into one list.
+    spline_xs : list
+        Cosine spaced x-ccordinates at which to re-create raw coordinates for each profile surface.
+        Number of x-coordinates defined in 'points' parameter.
+    splines : list
+        scipy.interpolate.Akima1DInterpolator interplolative spline functions for upper and lower profiles.
+    spline_funcs : list
+        Upper and lower profile cosine spaced interpolated x and y coordinates.
     """
 
     def __init__(self, file, points=51, prnt=False):
@@ -243,33 +351,52 @@ class Profile:
         self.points = points
 
         self.name = None
-        self.coords_up = None
-        self.coords_low = None
-        self.x = None
-        self.y = None
-        self.xy_profile = None
+        self.coords_up = []
+        self.coords_low = []
+        self.x = []
+        self.y = []
+        self.xy_profile = []
 
-        self.spline_xs = None
+        self.spline_xs = []
 
-        self.splines = None
-        self.spline_funcs = None
+        self.splines = []
+        self.spline_funcs = []
 
         if prnt:
             print('Achieving profile coordinates...')
-            self.coord_profile()
+            self.name, self.file, self.coords_up, self.coords_low, self.x, self.y, self.xy_profile = self.coord_profile()
             print(f' {self.name} Done. Creating x-coordinate cosine distribution with {points} points...')
-            self.x_distribution()
+            self.spline_xs = self.x_distribution()
             print(f'  Done. Interpolating upper and lower profile splines at coordinates...')
-            self.get_spline()
+            self.splines, self.spline_funcs = self.get_spline()
             print('   Done')
         else:
-            self.coord_profile()
-            self.x_distribution()
-            self.get_spline()
+            self.name, self.file, self.coords_up, self.coords_low, self.x, self.y, self.xy_profile = self.coord_profile()
+            self.spline_xs = self.x_distribution()
+            self.splines, self.spline_funcs = self.get_spline()
 
 
     def coord_profile(self):
-        """ """
+        """Reads coordinate files, separates upper and lower profiles, scales leading and trailing edge between (0, 0)
+        and (1, 0), and prepares corrdinates for interpolative function.
+
+        Returns
+        -------
+        name : str
+            Aerofoil name.
+        file : str
+            Aerofoil filename.
+        coords_up : list
+            Upper profile surface raw x and y coordinates.
+        coords_low : list
+            Lower profile surface raw x and y coordinates.
+        x : list
+            Full set of raw upper and lower profile x coordinates.
+        y : list
+            Full set of raw upper and lower profile y coordinates.
+        xy_profile : list
+            x and y united into one list.
+        """
 
         # Read aerofoil .dat file into dat list
         with open(self.file, "r") as f:
@@ -431,28 +558,36 @@ class Profile:
         y = ys_up + ys_low_rev
         xy_profile = [x, y]
 
-        self.name = name
-        self.file = file
-        self.coords_up = coords_up
-        self.coords_low = coords_low
-        self.x = x
-        self.y = y
-        self.xy_profile = xy_profile
-        return name, coords_up, coords_low, xy_profile
+        return name, file, coords_up, coords_low, x, y, xy_profile
 
 
     def x_distribution(self):
-        """ """
+        """Creates a set of cosine spaces x-coordinates between 0 and 1. Quantity defined by 'points' parameter.
+
+        Returns
+        -------
+        spline_xs : list
+            Cosine spaced x-ccordinates at which to re-create raw coordinates for each profile surface.
+            Number of x-coordinates defined in 'points' parameter.
+        """
 
         spline_xs_lin = np.linspace(0.0, math.pi, self.points)
         spline_xs = 0.5 * (1 - np.cos(spline_xs_lin))
 
-        self.spline_xs = spline_xs
         return spline_xs
 
 
     def get_spline(self):
-        """ """
+        """Re-creates upper and lower profiles by evaluating their y-coordinates at the cosine spaced x-coordinates
+        defines by the x_distribution() function.
+
+        Returns
+        -------
+        splines : list
+            scipy.interpolate.Akima1DInterpolator interplolative spline functions for upper and lower profiles.
+        spline_funcs : list
+            Upper and lower profile cosine spaced interpolated x and y coordinates.
+        """
 
         spline_up = interp.Akima1DInterpolator(self.coords_up[0], self.coords_up[1])
         yfunc_up = spline_up(self.spline_xs)
@@ -465,6 +600,4 @@ class Profile:
         splines = [spline_up, spline_low]
         spline_funcs = [spline_func_up, spline_func_low]
 
-        self.spline_funcs = spline_funcs
-        self.splines = splines
         return splines, spline_funcs

@@ -1,23 +1,30 @@
 import pandas as pd
 import numpy as np
-import matplotlib.ticker as mticker
 import matplotlib.pyplot as plt
-import aerofoils
+import math
 
 import tensorflow as tf
 from tensorflow import keras
-from keras import Sequential, optimizers, initializers
-from keras.layers import Dense, BatchNormalization, Activation, InputLayer, LeakyReLU, PReLU, Dropout, Conv2D
+from keras import Sequential, optimizers
+from keras.layers import Dense, BatchNormalization, Activation, InputLayer, LeakyReLU, PReLU, Dropout
 from keras.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau
-
-from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
-from sklearn.neural_network import MLPRegressor
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score
+
+import aerofoils
 
 
 def accuracy(y_true, y_pred):
+    """Evaluates the accuracy of predictions to match target values for two equal length arrays.
+
+    Parameters
+    ----------
+    y_true : array-like
+        Includes target values.
+    y_pred : array-like
+        Includes predicted values.
+    """
+
     indx = 0
     for t, p in zip(y_true, y_pred):
         if np.abs(t - p) < 0.01:
@@ -28,38 +35,82 @@ def accuracy(y_true, y_pred):
     return score
 
 
-def standardize(train, test):
-    scaler = StandardScaler().fit(train)
-    train = scaler.transform(train)
-    test = scaler.transform(test)
-
-    return train, test
-
-
 class Model:
+    """Represents an MLP NN model. Includes functions to build, train, evaluate, and predict with the model using the
+    Tensorflow Keras API.
 
-    def __init__(self, data, neurons, activation, name, test_df, mod='mlp_tf', EPOCHS=50, BATCH=256, lr=0.1, verbose=0):
+    Parameters
+    ----------
+    data : list
+        Contains lists of training and testing inputs and output data.
+    neurons : list
+        Contains lists of neuron numbers and indexes of neuron numbers to use.
+    activation : str
+        Activation function to use in Activation Keras layer.
+    weights: list
+        Training sample_weights assigned to each individual training case.
+    name : str
+        Model identifier. Mainly of interest when recording metrics and predictions for many models with different
+        hyperparameter settings to allow for quick identification.
+    test_df : pandas.DataFrame
+        DataFrame containing full range of testing data.
+    EPOCHS : int, default 50
+        Number of training epochs over which the model is trained.
+    BATCH : int, default 256
+        Number of training samples per gradient update during each epoch of training.
+    lr : float, default 0.001
+        Learning rate for model optimizer during training.
+    verbose : int, default 0
+        Keras verbosity mode. 0 = silent, 1 = progress bar, 2 = single line.
+    callbacks : bool, default False
+        If True, applies callbacks as defined in train() during training. Otherwise callbacks not applied.
+
+    Attributes
+    ----------
+    model : keras.Sequential
+        Model with architecture and hyperparameters as defined in the build_MLP() function.
+    fitHistory : keras Histroy object
+        History object returned after fitting the model during training in the model.fit() function.
+    trainEv : list
+        List of loss and metrics for trained model on testing data.
+    testEv : list
+        List of loss and metrics for trained model on training data.
+    pred : numpy.array
+        Predictions evaluated on testing inputs.
+    Pmetrics_df : pandas.DataFrame
+        DataFrame of prediction metrics evaluated between preictions and targets.
+    output_df : pandas.DataFrame
+        Copy of output_df with additional columns to represent the target Lift-to-Drag (L/D) ratio, and predicted lift,
+        drag, and L/D values.
+    """
+
+    def __init__(self, data, neurons, activation, weights, name, test_df, EPOCHS=50, BATCH=256, lr=0.001, verbose=0,
+                 callbacks=False):
         self.train_in = data[0]
         self.train_out = data[1]
         self.test_in = data[2]
         self.test_out = data[3]
         self.neurons = neurons
         self.activation = activation
-        self.mod = mod
+        self.weights = weights
         self.name = name
         self.test_df = test_df
         self.lr = lr
         self.EPOCHS = EPOCHS
         self.BATCH = BATCH
         self.verbose = verbose
+        self.callbacks = callbacks
 
         self.model = None
         self.fitHistory = None
         self.trainEv = None
         self.testEv = None
+        self.pred = None
+        self.Pmetrics_df = None
+        self.output_df = None
 
         print(' Building model...')
-        self.model = self.build_MLP_tf()
+        self.model = self.build_MLP()
         print(' -Done. Model successfully built.')
         print(' Training model...')
         self.fitHistory = self.train()
@@ -71,92 +122,116 @@ class Model:
         self.pred, self.Pmetrics_df, self.output_df = self.predict()
         print(' -Done. Predictions made and metrics on predictions evaluated.')
 
-    def build_MLP_tf(self):
+    def build_MLP(self):
+        """Builds MLP NN model to specified architecutre and hyperparameters.
 
-        if self.mod == 'mlp_tf':
-            model = Sequential()
+        Returns
+        -------
+        model : keras.Sequential
+            Model with architecture and hyperparameters as defined in the build_MLP() function.
+        """
 
-            model.add(InputLayer(input_shape=len(self.train_in[0])))
+        model = Sequential(name='MLP')
+
+        model.add(InputLayer(input_shape=len(self.train_in[0])))
+        model.add(BatchNormalization())
+
+        for n in self.neurons[1]:
+            model.add(Dense(self.neurons[0][n]))
+
+            if self.activation == 'leakyrelu':
+                model.add(LeakyReLU(alpha=0.3))
+            elif self.activation == 'prelu':
+                model.add(PReLU(alpha_initializer='zeros'))
+            else:
+                model.add(Activation(self.activation))
+
             model.add(BatchNormalization())
+            # model.add(Dropout(0.1))
 
-            for n in self.neurons[1]:
-                model.add(Dense(self.neurons[0][n]))
-                model.add(BatchNormalization())
+        model.add(Dense(len(self.test_out[0])))
 
-                if self.activation == 'leakyrelu':
-                    model.add(LeakyReLU(alpha=0.3))
-                elif self.activation == 'prelu':
-                    model.add(PReLU(alpha_initializer='zeros'))
-                else:
-                    model.add(Activation(self.activation))
+        OPT = optimizers.Adam(learning_rate=self.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
+        METS = ['ACC', 'MAE', 'MSE']
+        model.compile(optimizer=OPT, loss='MSE', metrics=METS, weighted_metrics=METS)  # , loss_weights=[1,2])
 
-            model.add(Dense(len(self.test_out[0])))
-
-            # model.add(Conv2D(256, 3, 3))
-            # model.add(Dropout(0.2))
-
-            OPT = optimizers.Adam(learning_rate=self.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
-            METS = ['ACC', 'MAE', 'MSE', 'MAPE']
-            model.compile(optimizer=OPT, loss='MSE', metrics=METS)
-
-            if self.verbose == 1:
-                print(model.summary())
-
-        elif self.mod == 'mlp_skl':
-            model = MLPRegressor(hidden_layer_sizes=(256, 128, 64, 32), activation='logistic', solver='adam',
-                                 alpha=0.0001, batch_size='auto',
-                                 learning_rate='adaptive', learning_rate_init=0.0001, power_t=0.5, max_iter=self.EPOCHS,
-                                 shuffle=True,
-                                 random_state=None, tol=0.0001, verbose=self.verbose, warm_start=False, momentum=0.9,
-                                 nesterovs_momentum=True, early_stopping=False, validation_fraction=0.1, beta_1=0.9,
-                                 beta_2=0.999,
-                                 epsilon=1e-08, n_iter_no_change=10, max_fun=15000)
-
-            self.train_in, self.test_in = standardize(self.train_in, self.test_in)
-
-        elif self.mod == 'rfr':
-            model = RandomForestRegressor(n_estimators=100, max_depth=None, random_state=None)
+        if self.verbose == 1:
+            print(model.summary())
 
         return model
 
     def train(self):
+        """Trains model with specified training hyperparameters.
 
-        if self.mod == 'mlp_tf':
-            early_stop = EarlyStopping(monitor='val_loss', patience=10, verbose=self.verbose, mode='min')
-            reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=5, verbose=self.verbose,
-                                          min_delta=1e-4, mode='min')
+        Returns
+        -------
+        fitHistory : keras Histroy object
+            History object returned after fitting the model during training in the model.fit() function.
+        """
 
-            fitHistory = self.model.fit(self.train_in, self.train_out, epochs=self.EPOCHS, batch_size=self.BATCH,
-                                        validation_split=0.1,
-                                        verbose=self.verbose, callbacks=[reduce_lr, early_stop],
-                                        class_weight={0: 1, 1: 1})
+        early_stop = EarlyStopping(monitor='val_loss', patience=10, verbose=self.verbose, mode='min')
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.25, patience=5, verbose=self.verbose,
+                                      min_delta=1e-4, mode='min')
+        if self.callbacks:
+            self.callbacks = [reduce_lr]   # , early_stop]
 
-        elif self.mod == 'mlp_skl' or 'rfr':
-            fitHistory = self.model.fit(self.train_in, self.train_out)
+        fitHistory = self.model.fit(self.train_in, self.train_out, epochs=self.EPOCHS, batch_size=self.BATCH,
+                                    validation_split=0.1, verbose=self.verbose, callbacks=self.callbacks,
+                                    sample_weight=self.weights, class_weight={0: 1, 1: 1.5})
 
         return fitHistory
 
     def evaluate(self):
-        if self.mod == 'mlp_tf':
-            trainEv = self.model.evaluate(self.train_in, self.train_out, batch_size=self.BATCH)
-            testEv = self.model.evaluate(self.test_in, self.test_out, batch_size=self.BATCH)
+        """Evaluates trained model on training and testing data in batch sizes.
 
-        elif self.mod == 'mlp_skl' or 'rfr':
-            trainEv = self.model.score(self.train_in, self.train_out)
-            print(f'Train Score: {trainEv}.')
-            testEv = self.model.score(self.test_in, self.test_out)
-            print(f'Test Score: {testEv}.')
+        Returns
+        -------
+        trainEv : list
+            List of loss and metrics for trained model on testing data.
+        testEv : list
+            List of loss and metrics for trained model on training data.
+        """
+
+        trainEv = self.model.evaluate(self.train_in, self.train_out, batch_size=self.BATCH)
+        testEv = self.model.evaluate(self.test_in, self.test_out, batch_size=self.BATCH)
 
         return trainEv, testEv
 
-    def predict(self):
-        pred = self.model.predict(self.test_in)
+    def predict(self, test_in=None, test_out=None, test_df=None):
+        """Creates predictions on testing inputs using trained model.
+
+        Parameters
+        ----------
+        test_in : numpy.array
+            Inputs on which model makes predictions.
+        test_out : numpy.array
+            Targets for predictions on test_in.
+        test_df : pandas.DataFrame
+            DataFrame containing full range of testing data.
+
+        Returns
+        -------
+        pred : numpy.array
+            Predictions evaluated on testing inputs.
+        Pmetrics_df : pandas.DataFrame
+            DataFrame of prediction metrics evaluated between preictions and targets.
+        output_df : pandas.DataFrame
+            Copy of output_df with additional columns to represent the target Lift-to-Drag (L/D) ratio, and predicted lift,
+            drag, and L/D values.
+        """
+
+        if test_in is None:
+            test_in = self.test_in
+            test_out = self.test_out
+            test_df = self.test_df
+
+        pred = self.model.predict(test_in)
 
         clp = [p[0] for p in pred]
         cdp = [p[1] for p in pred]
         ldp = [l / d for l, d in zip(clp, cdp)]
-        clt = [t[0] for t in self.test_out]
-        cdt = [t[1] for t in self.test_out]
+        clt = [t[0] for t in test_out]
+        cdt = [t[1] for t in test_out]
         ldt = [l / d for l, d in zip(clt, cdt)]
         p = clp + cdp
         t = clt + cdt
@@ -172,17 +247,18 @@ class Model:
         MAE_cl = mean_absolute_error(clt, clp)
         MAE_cd = mean_absolute_error(cdt, cdp)
         MAE = mean_absolute_error(t, p)
-        MAPE_cl = mean_absolute_percentage_error(clt, clp)
-        MAPE_cd = mean_absolute_percentage_error(cdt, cdp)
-        MAPE = mean_absolute_percentage_error(t, p)
+        RMSE_cl = math.sqrt(MSE_cl)
+        RMSE_cd = math.sqrt(MSE_cd)
+        RMSE = math.sqrt(MSE)
         Pmetrics_df = pd.DataFrame({'name': [str(self.name)],
                                     'ACC_cl': [float(ACC_cl)], 'ACC_cd': [float(ACC_cd)], 'ACC': [float(ACC)],
                                     'MAE_cl': [float(MAE_cl)], 'MAE_cd': [float(MAE_cd)], 'MAE': [float(MAE)],
                                     'R2_cl': [float(R2_cl)], 'R2_cd': [float(R2_cd)],
                                     'MSE_cl': [float(MSE_cl)], 'MSE_cd': [float(MSE_cd)], 'MSE': [float(MSE)],
-                                    'MAPE_cl': [float(MAPE_cl)], 'MAPE_cd': [float(MAPE_cd)], 'MAPE': [float(MAPE)]})
+                                    'RMSE_cl': [float(RMSE_cl)], 'RMSE_cd': [float(RMSE_cd)], 'RMSE': [float(RMSE)]})
 
-        output_df = self.test_df.copy()
+        output_df = test_df.copy()
+        output_df = output_df.drop(columns=['x', 'y_up', 'y_low'])
         output_df['LtD'] = ldt
         output_df['Cl_pred'] = clp
         output_df['Cd_pred'] = cdp
@@ -191,77 +267,99 @@ class Model:
         return pred, Pmetrics_df, output_df
 
 
-def run_Model(data, neurons, activation, test_df, mod='mlp_tf', EPOCHS=50, BATCH=256, lr=0.1, verbose=0):
+def run_Model(data, neurons, activation, weights, test_df, EPOCHS=50, BATCH=256, lr=0.1, verbose=0, callbacks=False):
+    """Creates a dictionary of NN model names and objects.
+
+    Parameters
+    ----------
+    data : list
+        Contains lists of training and testing inputs and output data.
+    neurons : list
+        Contains lists of neuron numbers and indexes of neuron numbers to use.
+    activation : list
+        List of activation functions to use in Activation Keras layer for each model.
+    weights: list
+        Training sample_weights assigned to each individual training case.
+    test_df : pandas.DataFrame
+        DataFrame containing full range of testing data.
+    EPOCHS : int, default 50
+        Number of training epochs over which the model is trained.
+    BATCH : int, default 256
+        Number of training samples per gradient update during each epoch of training.
+    lr : float, default 0.001
+        Learning rate for model optimizer during training.
+    verbose : int, default 0
+        Keras verbosity mode. 0 = silent, 1 = progress bar, 2 = single line.
+    callbacks : bool, default False
+        If True, applies callbacks as defined in train() during training. Otherwise callbacks not applied.
+
+    Returns
+    -------
+    models : dict
+        Dictionary of model names and model objects.
+    """
+
     print('Building, training, and testing model(s)...')
 
     models = {}
     for act in activation:
-        name = mod.upper() + '-' + act
+        name = act.upper()
         print(f' ====  {name}  ====')
         model = Model(data=data,
                       neurons=neurons,
                       activation=act,
+                      weights=weights,
                       name=name,
                       test_df=test_df,
-                      mod=mod,
                       EPOCHS=EPOCHS,
                       BATCH=BATCH,
                       lr=lr,
-                      verbose=verbose)
+                      verbose=verbose,
+                      callbacks=callbacks)
 
         models[name] = model
 
-    print('-Done. Model(s) saved in "models" distionary.')
+    print('-Done. Model(s) saved in "models" dictionary.')
     return models
 
 
-def model_predict(model, test_in, true, test_df):
+def model_predict(model, test_in, test_out, test_df):
+    """Creates predictions on testing inputs using trained model by running the model.predict() class function.
+
+    Parameters
+    ----------
+    model : keras.Sequential
+        Model with architecture and hyperparameters as defined in the build_MLP() function.
+    test_in : numpy.array
+        Inputs on which model makes predictions.
+    test_out : numpy.array
+        Targets for predictions on test_in.
+    test_df : pandas.DataFrame
+        DataFrame containing full range of testing data.
+
+    Returns
+    -------
+    pred : numpy.array
+        Predictions evaluated on testing inputs.
+    Pmetrics_df : pandas.DataFrame
+        DataFrame of prediction metrics evaluated between preictions and targets.
+    output_df : pandas.DataFrame
+        Copy of output_df with additional columns to represent the target Lift-to-Drag (L/D) ratio, and predicted lift,
+        drag, and L/D values.
+    """
+
     print('Predicting on testing data...')
 
-    pred = model.model.predict(test_in)
-
-    clp = [p[0] for p in pred]
-    cdp = [p[1] for p in pred]
-    ldp = [l / d for l, d in zip(clp, cdp)]
-    clt = [t[0] for t in true]
-    cdt = [t[1] for t in true]
-    ldt = [l / d for l, d in zip(clt, cdt)]
-    p = clp + cdp
-    t = clt + cdt
-
-    ACC_cl = accuracy(clt, clp)
-    ACC_cd = accuracy(cdt, cdp)
-    ACC = accuracy(t, p)
-    R2_cl = r2_score(clt, clp)
-    R2_cd = r2_score(cdt, cdp)
-    MSE_cl = mean_squared_error(clt, clp)
-    MSE_cd = mean_squared_error(cdt, cdp)
-    MSE = mean_squared_error(t, p)
-    MAE_cl = mean_absolute_error(clt, clp)
-    MAE_cd = mean_absolute_error(cdt, cdp)
-    MAE = mean_absolute_error(t, p)
-    MAPE_cl = mean_absolute_percentage_error(clt, clp)
-    MAPE_cd = mean_absolute_percentage_error(cdt, cdp)
-    MAPE = mean_absolute_percentage_error(t, p)
-    Pmetrics_df = pd.DataFrame({'name': [str(model.name)],
-                                'ACC_cl': [float(ACC_cl)], 'ACC_cd': [float(ACC_cd)], 'ACC': [float(ACC)],
-                                'MAE_cl': [float(MAE_cl)], 'MAE_cd': [float(MAE_cd)], 'MAE': [float(MAE)],
-                                'R2_cl': [float(R2_cl)], 'R2_cd': [float(R2_cd)],
-                                'MSE_cl': [float(MSE_cl)], 'MSE_cd': [float(MSE_cd)], 'MSE': [float(MSE)],
-                                'MAPE_cl': [float(MAPE_cl)], 'MAPE_cd': [float(MAPE_cd)], 'MAPE': [float(MAPE)]})
-
-    output_df = test_df.copy()
-    output_df['LtD'] = ldt
-    output_df['Cl_pred'] = clp
-    output_df['Cd_pred'] = cdp
-    output_df['LtD_pred'] = ldp
+    pred, Pmetrics_df, output_df = model.predict(test_in, test_out, test_df)
 
     print('-Done. Predictions made and metrics on predictions evaluated.')
     return pred, Pmetrics_df, output_df
 
 
-def pred_metrics(Pmetrics_df=None, models=None, file='results/model-metrics.csv', df_from='current',
-                 models_add=False, df_save=False, prnt=False, plot=False):
+def pred_metrics(Pmetrics_df, models, file='results/model-metrics.csv', df_from='current', models_add=False, df_save=False,
+                 prnt=False, plot=False):
+    """Function to handle the prediction metrics in a variety of way depending by choice of parameters."""
+
     print("Extracting metrics on the model's predictions...")
 
     if df_from == 'current':
@@ -282,7 +380,7 @@ def pred_metrics(Pmetrics_df=None, models=None, file='results/model-metrics.csv'
     elif df_from == 'new':
         print(' Without any model...')
         metrics_df = pd.Dataframe(columns=['name', 'ACC_cl', 'ACC_cd', 'ACC', 'MAE_cl', 'MAE_cd', 'MAE',
-                                           'R2_cl', 'R2_cd', 'MSE_cl', 'MSE_cd', 'MSE', 'MAPE_cl', 'MAPE_cd', 'MAPE'])
+                                           'R2_cl', 'R2_cd', 'MSE_cl', 'MSE_cd', 'MSE', 'RMSE_cl', 'RMSE_cd', 'RMSE'])
 
     if models_add:
         print('  Including models from "models" dictionary...')
@@ -299,12 +397,11 @@ def pred_metrics(Pmetrics_df=None, models=None, file='results/model-metrics.csv'
         print('   === PREDICTION METRICS ===')
         for index, row in metrics_df.iterrows():
             print(f'    Model: {row[0]}.')
-
-            print(f'    ACC:   CL: {round(row[1], 4)} and CD: {round(row[2], 4)} and ALL: {round(row[3], 4)}.')
-            print(f'    MAE:   CL: {round(row[4], 4)} and CD: {round(row[5], 4)} and ALL: {round(row[6], 4)}.')
-            print(f'    R2:    CL: {round(row[7], 4)} and CD: {round(row[8], 4)}.')
-            print(f'    MSE:   CL: {round(row[9], 4)} and CD: {round(row[10], 4)} and ALL: {round(row[11], 4)}.')
-            print(f'    MAPE:  CL: {round(row[12], 4)} and CD: {round(row[13], 4)} and ALL: {round(row[14], 4)}.')
+            print(f'ACC:   CL: {round(row[1], 5)} and CD: {round(row[2], 5)} and ALL: {round(row[3], 4)}.')
+            print(f'MAE:   CL: {round(row[4], 5)} and CD: {round(row[5], 5)} and ALL: {round(row[6], 4)}.')
+            print(f'R2:    CL: {round(row[7], 5)} and CD: {round(row[8], 5)}.')
+            print(f'MSE:   CL: {round(row[9], 5)} and CD: {round(row[10], 7)} and ALL: {round(row[11], 4)}.')
+            print(f'RMSE:  CL: {round(row[12], 5)} and CD: {round(row[13], 5)} and ALL: {round(row[14], 4)}.')
 
     if plot:
         print('  And plotting metrics...')
@@ -321,10 +418,10 @@ def pred_metrics(Pmetrics_df=None, models=None, file='results/model-metrics.csv'
         rels = [[list(metrics_df.ACC_cl), list(metrics_df.ACC_cd), list(metrics_df.ACC)],
                 [list(metrics_df.MAE_cl), list(metrics_df.MAE_cd), list(metrics_df.MAE)],
                 [list(metrics_df.MSE_cl), list(metrics_df.MSE_cd), list(metrics_df.MSE)],
-                [list(metrics_df.MAPE_cl), list(metrics_df.MAPE_cd), list(metrics_df.MAPE)]]
-        titles = ['Accuracy', 'Mean Average Error', 'Mean Squared Error', 'Mean Average Percentage Error']
+                [list(metrics_df.RMSE_cl), list(metrics_df.RMSE_cd), list(metrics_df.RMSE)]]
+        titles = ['Accuracy', 'Mean Average Error', 'Mean Squared Error', 'Root Mean Squared Error']
         labelss = [['ACC_cl', 'ACC_cd', 'ACC'], ['MAE_cl', 'MAE_cd', 'MAE'],
-                   ['MSE_cl', 'MSE_cd', 'MSE'], ['MAPE_cl', 'MAPE_cd', 'MAPE']]
+                   ['MSE_cl', 'MSE_cd', 'MSE'], ['RMSE_cl', 'RMSE_cd', 'RMSE']]
         axindxs = [[0, 0, 1, 1], [0, 1, 0, 1]]
 
         for rel, title, labels, i, j in zip(rels, titles, labelss, axindxs[0], axindxs[1]):
@@ -335,9 +432,10 @@ def pred_metrics(Pmetrics_df=None, models=None, file='results/model-metrics.csv'
             m = 0
             for lst, col, label in zip(rel, cols, labels):
                 offset = w * m
-                bars = axs[i, j].bar(x + offset, lst, color=col, width=w, label=label)
-                axs[i, j].bar_label(bars, padding=0, fontsize=7, fontname="Times New Roman")
+                bars = axs[i, j].bar(x + offset, lst, color=col, width=w/1.5, label=label)
+                axs[i, j].bar_label(bars, padding=0, fontsize=11, fontname="Times New Roman")
                 m += 1
+            axs[i, j].set_ylim(0, max(rel[0] + rel[1] + rel[2]) * 1.25)
             axs[i, j].legend()
             axs[i, j].set_xticks(x + w)
             axs[i, j].set_xticklabels(names, rotation=0)
@@ -348,7 +446,9 @@ def pred_metrics(Pmetrics_df=None, models=None, file='results/model-metrics.csv'
     return metrics_df
 
 
-def train_metrics(models, mets, df_from='current', prnt=False, plot=False):
+def train_metrics(models, mets=['loss', 'ACC', 'MAE'], df_from='current', prnt=False, plot=False):
+    """Function to handle the training metrics in a variety of way depending by choice of parameters."""
+
     print("Extracting metrics from the model's training...")
 
     if df_from == 'current':
@@ -363,51 +463,59 @@ def train_metrics(models, mets, df_from='current', prnt=False, plot=False):
 
     if prnt:
         print('  And printing metrics...')
-        print('  === TRAIN, VAL & EVAL METRICS ===')
+        print('=== TRAIN, VAL & EVAL METRICS ===')
         for name, model in models.items():
-            print(f'   Model: {name}')
-            min1 = min(list(model.fitHistory.history.get(f'val_{mets[0]}')))
-            avg1 = sum(list(model.fitHistory.history.get(f'val_{mets[0]}'))) / len(list(model.fitHistory.history.get(f'val_{mets[0]}')))
-            print(f'   VALIDATION {mets[0].upper()}:  Lowerst: {min1}, Average: {avg1}.')
-            min2 = max(list(model.fitHistory.history.get(f'val_{mets[1]}')))
-            avg2 = sum(list(model.fitHistory.history.get(f'val_{mets[1]}'))) / len(list(model.fitHistory.history.get(f'val_{mets[1]}')))
-            print(f'   VALIDATION {mets[1].upper()}:  Highest: {min2}, Average: {avg2}.')
-            print(f'   EVALUATE:        Train: {model.trainEv}, \n                    Test:  {model.testEv}.')
+            print(f'MODEL           :  {name}')
+            train_loss = list(model.fitHistory.history.get(f'{mets[0]}'))[-1]
+            val_loss = list(model.fitHistory.history.get(f'val_{mets[0]}'))[-1]
+            print(f'{mets[0].upper()} :  Training: {round(train_loss, 6)}, Validation: {round(val_loss, 6)}.')
+            train_acc = list(model.fitHistory.history.get(f'{mets[1]}'))[-1]
+            val_acc = list(model.fitHistory.history.get(f'val_{mets[1]}'))[-1]
+            print(f'{mets[1].upper()} :  Training: {round(train_acc, 4)}, Validation: {round(val_acc, 4)}.')
+            if len(mets) == 3:
+                train_mae = list(model.fitHistory.history.get(f'{mets[2]}'))[-1]
+                val_mae = list(model.fitHistory.history.get(f'val_{mets[2]}'))[-1]
+                print(f'{mets[2].upper()} :  Training: {round(train_mae, 4)}, Validation: {round(val_mae, 4)}.')
+            print(f'EVALUATE \n Train: {model.trainEv}, \n Test:  {model.testEv}.', '\n')
 
     if plot:
         print('  And plotting metrics...')
         fig = plt.figure(1)
-        fig.suptitle('TRAINING & VALIDATION METRICS', fontsize=16, fontname="Times New Roman", fontweight='bold')
+        fig.suptitle('TRAINING & VALIDATION METRICS', fontsize=20, fontname="Times New Roman", fontweight='bold')
         fig.set_figheight(7)
         fig.set_figwidth(15)
-        axs = fig.subplots(2, 2)
+        if len(mets) == 2:
+            ax1, ax2 = fig.subplots(1, 2)
+        elif len(mets) == 3:
+            ax1, ax2, ax3 = fig.subplots(1, 3)
         fig.tight_layout(pad=4, h_pad=3.5, w_pad=7)
 
-        for i, cat in zip([0, 1], ['Training', 'Validation']):
-            axs[0, i].set_title(f'{cat} {mets[0].upper()} v. Epochs', fontsize=15, fontname="Times New Roman",
-                                fontweight='bold')
-            axs[0, i].set_ylabel(f'{mets[0].upper()}', fontsize=12, fontname="Times New Roman")
-            axs[0, i].set_xlabel('Epoch', fontsize=11, fontname="Times New Roman")
-            axs[0, i].set_yscale('log')
-            for name, model in models.items():
-                if cat == 'Training':
-                    axs[0, i].plot(model.fitHistory.history.get(f'{mets[0]}'), label=f'{name} {cat} {mets[0].upper()}')
-                elif cat == 'Validation':
-                    axs[0, i].plot(model.fitHistory.history.get(f'val_{mets[0]}'), label=f'{name} {cat} {mets[0].upper()}')
-            axs[0, i].legend()
+        ax1.set_title('Loss (MSE) v. Epochs', fontsize=20, fontname="Times New Roman", fontweight='bold')
+        ax1.set_ylabel('MSE', fontsize=18, fontname="Times New Roman")
+        ax1.set_xlabel('Epoch', fontsize=18, fontname="Times New Roman")
+        ax1.set_yscale('log')
+        for name, model in models.items():
+            ax1.plot(model.fitHistory.history.get(f'{mets[0]}'), label=f'Training {mets[0].upper()}')
+            ax1.plot(model.fitHistory.history.get(f'val_{mets[0]}'), label=f'Validation {mets[0].upper()}')
+        ax1.legend()
 
-        for i, cat in zip([0, 1], ['Training', 'Validation']):
-            axs[1, i].set_title(f'{cat} {mets[1].upper()} v. Epochs', fontsize=15, fontname="Times New Roman",
-                                fontweight='bold')
-            axs[1, i].set_ylabel(f'{mets[1].upper()}', fontsize=12, fontname="Times New Roman")
-            axs[1, i].set_xlabel('Epoch', fontsize=11, fontname="Times New Roman")
-            #axs[1, i].set_yscale('log')
+        ax2.set_title('Accuracy v. Epochs', fontsize=20, fontname="Times New Roman", fontweight='bold')
+        ax2.set_ylabel('Accuracy', fontsize=18, fontname="Times New Roman")
+        ax2.set_xlabel('Epoch', fontsize=18, fontname="Times New Roman")
+        for name, model in models.items():
+            ax2.plot(model.fitHistory.history.get(f'{mets[1]}'), label=f'Training {mets[1].upper()}')
+            ax2.plot(model.fitHistory.history.get(f'val_{mets[1]}'), label=f'Validation {mets[1].upper()}')
+        ax2.legend()
+
+        if len(mets) == 3:
+            ax3.set_title('MAE v. Epochs', fontsize=20, fontname="Times New Roman", fontweight='bold')
+            ax3.set_ylabel('MAE', fontsize=18, fontname="Times New Roman")
+            ax3.set_xlabel('Epoch', fontsize=18, fontname="Times New Roman")
+            ax3.set_yscale('log')
             for name, model in models.items():
-                if cat == 'Training':
-                    axs[1, i].plot(model.fitHistory.history.get(f'{mets[1]}'), label=f'{name} {cat} {mets[1].upper()}')
-                elif cat == 'Validation':
-                    axs[1, i].plot(model.fitHistory.history.get(f'val_{mets[1]}'), label=f'{name} {cat} {mets[1].upper()}')
-            axs[1, i].legend()
+                ax3.plot(model.fitHistory.history.get(f'{mets[2]}'), label=f'Training {mets[2].upper()}')
+                ax3.plot(model.fitHistory.history.get(f'val_{mets[2]}'), label=f'Validation {mets[2].upper()}')
+            ax3.legend()
 
         plt.show()
 
@@ -417,6 +525,8 @@ def train_metrics(models, mets, df_from='current', prnt=False, plot=False):
 
 def predictions(aerofoils_df, output=None, name=None, re=None, file='results/predictions.csv', df_from='current',
                 model_add=False, df_save=False, plot=True, err=False):
+    """Function to handle the predictions in a variety of way depending by choice of parameters."""
+
     print("Handling model's predictions...")
 
     if df_from == 'current':
@@ -450,65 +560,65 @@ def predictions(aerofoils_df, output=None, name=None, re=None, file='results/pre
         fig1.set_figheight(7)
         fig1.set_figwidth(15)
         fig1.suptitle(plot_df.name.tolist()[0].upper() + ' || Re = {:,}'.format(int(plot_df.Re.tolist()[0])),
-                      fontsize=18, fontname="Times New Roman", fontweight='bold')
+                      fontsize=22, fontname="Times New Roman", fontweight='bold')
         axs = fig1.subplots(2, 2)
         fig1.tight_layout(pad=4, h_pad=3.5, w_pad=7)
 
-        axs[0, 0].set_title('Lift Coefficient v. Angle of Attack', fontsize=15, fontname="Times New Roman",
+        axs[0, 0].set_title('Lift Coefficient v. Angle of Attack', fontsize=20, fontname="Times New Roman",
                             fontweight='bold')
-        axs[0, 0].set_xlabel('Angle of Attack [deg]', fontsize=12, fontname="Times New Roman")
-        axs[0, 0].set_ylabel('Lift Coefficient', fontsize=12, fontname="Times New Roman")
+        axs[0, 0].set_xlabel('Angle of Attack [deg]', fontsize=18, fontname="Times New Roman")
+        axs[0, 0].set_ylabel('Lift Coefficient', fontsize=18, fontname="Times New Roman")
         a, t, p = plot_df.alpha.tolist(), plot_df.Cl.tolist(), plot_df.Cl_pred.tolist()
         axs[0, 0].plot(a, p, '--', lw=1, marker='o', markersize=2, label='Predicted')
         axs[0, 0].plot(a, t, lw=1, marker='o', markersize=2, label='True')
-        axs[0, 0].legend(bbox_to_anchor=(0.25, 1))
+        axs[0, 0].legend()  # bbox_to_anchor=(0.15,1))
 
         if err:
             axs00 = axs[0, 0].twinx()
-            axs00.set_ylabel('Error', fontsize=12, fontname="Times New Roman", rotation=270, labelpad=15)
+            axs00.set_ylabel('Error', fontsize=18, fontname="Times New Roman", rotation=270, labelpad=15)
             err = [np.abs(tt - pp) for tt, pp in zip(t, p)]
-            axs00.bar(a, err, width=(max(a) - min(a)) / len(a), alpha=0.1, label='Error')
+            axs00.bar(a, err, width=(max(a) - min(a)) / (2 * len(a)), alpha=0.1, label='Error')
             axs00.set_ylim(0, 1.5 * max(err))
-            axs00.legend(bbox_to_anchor=(0.25, 0.75))
+            axs00.legend(bbox_to_anchor=(0.25, 1))
 
-        axs[0, 1].set_title('Lift Coefficient v. Angle of Attack', fontsize=15, fontname="Times New Roman",
+        axs[0, 1].set_title('Lift Coefficient v. Angle of Attack', fontsize=20, fontname="Times New Roman",
                             fontweight='bold')
-        axs[0, 1].set_xlabel('Angle of Attack [deg]', fontsize=12, fontname="Times New Roman")
-        axs[0, 1].set_ylabel('Drag Coefficient', fontsize=12, fontname="Times New Roman")
+        axs[0, 1].set_xlabel('Angle of Attack [deg]', fontsize=18, fontname="Times New Roman")
+        axs[0, 1].set_ylabel('Drag Coefficient', fontsize=18, fontname="Times New Roman")
         a, t, p = plot_df.alpha.tolist(), plot_df.Cd.tolist(), plot_df.Cd_pred.tolist()
         axs[0, 1].plot(a, p, '--', lw=1, marker='o', markersize=2, label='Predicted')
         axs[0, 1].plot(a, t, lw=1, marker='o', markersize=2, label='True')
-        axs[0, 1].legend(bbox_to_anchor=(0.55, 1))
+        axs[0, 1].legend()  # bbox_to_anchor=(0.3,1))
 
         if err:
             axs01 = axs[0, 1].twinx()
-            axs01.set_ylabel('Error', fontsize=12, fontname="Times New Roman", rotation=270, labelpad=15)
+            axs01.set_ylabel('Error', fontsize=18, fontname="Times New Roman", rotation=270, labelpad=15)
             err = [np.abs(tt - pp) for tt, pp in zip(t, p)]
-            axs01.bar(a, err, width=(max(a) - min(a)) / len(a), alpha=0.1, label='Error')
+            axs01.bar(a, err, width=(max(a) - min(a)) / (2 * len(a)), alpha=0.1, label='Error')
             axs01.set_ylim(0, 1.5 * max(err))
-            axs01.legend(bbox_to_anchor=(0.55, 0.75))
+            axs01.legend(bbox_to_anchor=(0.4, 1))
 
-        axs[1, 0].set_title('Lift to Drag Ratio v. Angle of Attack', fontsize=15, fontname="Times New Roman",
+        axs[1, 0].set_title('Lift to Drag Ratio v. Angle of Attack', fontsize=20, fontname="Times New Roman",
                             fontweight='bold')
-        axs[1, 0].set_xlabel('Angle of Attack [deg]', fontsize=12, fontname="Times New Roman")
-        axs[1, 0].set_ylabel('Lift to Drag Ratio', fontsize=12, fontname="Times New Roman")
+        axs[1, 0].set_xlabel('Angle of Attack [deg]', fontsize=18, fontname="Times New Roman")
+        axs[1, 0].set_ylabel('Lift to Drag Ratio', fontsize=18, fontname="Times New Roman")
         a, t, p = plot_df.alpha.tolist(), plot_df.LtD.tolist(), plot_df.LtD_pred.tolist()
         axs[1, 0].plot(a, p, '--', lw=1, marker='o', markersize=2, label='Predicted')
         axs[1, 0].plot(a, t, lw=1, marker='o', markersize=2, label='True')
-        axs[1, 0].legend(bbox_to_anchor=(0.25, 1))
+        axs[1, 0].legend()  # bbox_to_anchor=(0.15,1))
 
         if err:
             axs10 = axs[1, 0].twinx()
-            axs10.set_ylabel('Error', fontsize=12, fontname="Times New Roman", rotation=270, labelpad=15)
+            axs10.set_ylabel('Error', fontsize=18, fontname="Times New Roman", rotation=270, labelpad=15)
             err = [np.abs(tt - pp) for tt, pp in zip(t, p)]
-            axs10.bar(a, err, width=(max(a) - min(a)) / len(a), alpha=0.1, label='Error')
+            axs10.bar(a, err, width=(max(a) - min(a)) / (2 * len(a)), alpha=0.1, label='Error')
             axs10.set_ylim(0, 1.5 * max(err))
-            axs10.legend(bbox_to_anchor=(0.25, 0.75))
+            axs10.legend(bbox_to_anchor=(0.25, 1))
 
-        aindx = aerofoils_df.loc[aerofoils_df['file'] == name].index[0]
+        aindx = aerofoils_df.loc[aerofoils_df.file == name].index[0]
         aerofoils.plot_profile(aerofoils_df, aindx, scatt=False, x_val=False, ax=axs[1, 1], prnt=False)
 
         plt.show()
 
     print('-Done. Predictions processed as chosen.')
-    return NAMEs, REs, plot_df
+    return plot_df

@@ -6,7 +6,14 @@ import pandas as pd
 
 
 def get_AFT_cases(directory='dat/case-dat'):
-    """ """
+    """Achieves all Xfoil generated aerodynamic coefficient files from the Airfoil Tools Airfoil Database at all available
+    Re and AoA and downloads them to a specified directory.
+
+    Parameters
+    ----------
+    directory : str, default 'dat/case-dat'
+        Direcotry path where to download the '.csv' coefficient files.
+    """
 
     baseFlpth = "http://airfoiltools.com"
 
@@ -63,6 +70,15 @@ def get_AFT_cases(directory='dat/case-dat'):
 
 
 def get_RENNES_cases(directory='dat/rennes-dat/case-dat'):
+    """Achieves all Xfoil generated aerodynamic coefficient files from a study conducted by the Université de Rennes
+     and downloads them to a specified directory.
+
+    Parameters
+    ----------
+    directory : str, default 'dat/rennes-dat/case-dat'
+        Direcotry path where to download the '.txt' coefficient files.
+    """
+
     baseFlpth = "https://perso.univ-rennes1.fr/laurent.blanchard/Profils/"
 
     html_all = urllib2.urlopen(baseFlpth).read()
@@ -114,8 +130,27 @@ def get_RENNES_cases(directory='dat/rennes-dat/case-dat'):
     print(f'-Done. {indx} files copied from {baseFlpth} and saved to ~/{directory}.')
 
 
-def read_CSVcase(file):
-    """ """
+def read_AFTcase(file):
+    """Reads the format of aerodynamic coefficient files downloaded from the Airfoil Tools Airfoil Database.
+
+    Parameters
+    ----------
+    file : str
+        Path to '.csv' aerodynamic coefficient file.
+
+    Returns
+    -------
+    name : str
+        Filename of aerofoil on which coefficients are evaluated for a file.
+    Re : float
+        Reynolds number at which coefficnets are avaluated for a file.
+    alphas : list
+        List of float Angles of Attack at which coefficients are evaluated for a file.
+    Cls : List
+        List of float Lift Coefficients resulting from the combination of aerofoil, Re, and each alpha for a file.
+    Cds : List
+        List of float Drag Coefficients resulting from the combination of aerofoil, Re, and each alpha for a file.
+    """
 
     top = pd.read_csv(file, nrows=8)
     bottom = pd.read_csv(file, skiprows=9)
@@ -138,7 +173,28 @@ def read_CSVcase(file):
     return name, Re, alphas, Cls, Cds
 
 
-def read_TXTcase(file):
+def read_RENcase(file):
+    """Reads the format of aerodynamic coefficient files downloaded from the Université de Rennes study.
+
+    Parameters
+    ----------
+    file : str
+        Path to '.txt' aerodynamic coefficient file.
+
+    Returns
+    -------
+    name : str
+        Filename of aerofoil on which coefficients are evaluated for a file.
+    Re : float
+        Reynolds number at which coefficnets are avaluated for a file.
+    alphas : list
+        List of float Angles of Attack at which coefficients are evaluated for a file.
+    Cls : List
+        List of float Lift Coefficients resulting from the combination of aerofoil, Re, and each alpha for a file.
+    Cds : List
+        List of float Drag Coefficients resulting from the combination of aerofoil, Re, and each alpha for a file.
+    """
+
     with open(file, "r") as f:
         lines = f.readlines()
         dat = []
@@ -166,25 +222,77 @@ def read_TXTcase(file):
     return name, Re, alphas, Cls, Cds
 
 
+def read_EXPcase(file):
+    """Reads the format of personally digitised and created experimental aerodynamic coefficient files.
+
+    Parameters
+    ----------
+    file : str
+        Path to '.csv' aerodynamic coefficient file.
+
+    Returns
+    -------
+    name : list
+        List of str aerofoil filenames on which coefficients are evaluated for a file.
+    Re : list
+        List of float Reynolds numbers at which coefficnets are avaluated for a file.
+    alphas : list
+        List of float Angles of Attack at which coefficients are evaluated for a file.
+    Cls : List
+        List of float Lift Coefficients resulting from the combination of aerofoil, Re, and each alpha for a file.
+    Cds : List
+        List of float Drag Coefficients resulting from the combination of aerofoil, Re, and each alpha for a file.
+    """
+
+    dat = pd.read_csv(file)
+
+    name = dat.file.tolist()
+    Re = dat.Re.tolist()
+    alphas = dat.alpha.tolist()
+    Cls = dat.Cl.tolist()
+    Cds = dat.Cd.tolist()
+
+    return name, Re, alphas, Cls, Cds
+
+
 def create_cases(directory='dat/case-dat', ext='csv'):
-    """ """
+    """Creates a Pandas DataFrame where rows contain the aerofoil name, Re, AoA, Cl, and Cd of a specific aerodynamic
+    coefficient case.
+
+    Parameters
+    ----------
+    directory : str, default 'dat/case-dat'
+        Directory path that contains the aerodynamic coefficient files.
+    ext : str, default 'csv'
+        Extension of the relevant files in the directory.
+
+    Returns
+    -------
+    cases_df : pandas.DataFrame
+        DataFrame containing the filename, Re, AoA and resulting Cl, Cd for a number of specific cases.
+    """
 
     if directory == 'dat/case-dat':
         print('Creating Cases DataFrame...')
     elif directory == 'dat/rennes-dat/case-dat':
         print('Creating Rennes Cases DataFrame...')
+    elif directory == 'dat/exp-dat/case-dat':
+        print('Creating Experimental Cases DataFrame...')
 
     cases_df = pd.DataFrame(columns=['file', 'Re', 'alpha', 'Cl', 'Cd'])
     for file in os.scandir(directory):
         if file.name.endswith('.' + ext):
             try:
-                if ext == 'csv':
-                    name, Re, alphas, Cls, Cds = read_CSVcase(file)
-                elif ext == 'txt':
-                    name, Re, alphas, Cls, Cds = read_TXTcase(file)
-
-                name = [name.lower()] * len(alphas)
-                Re = [Re] * len(alphas)
+                if directory == 'dat/case-dat':
+                    name, Re, alphas, Cls, Cds = read_AFTcase(file)
+                    name = [name.lower()] * len(alphas)
+                    Re = [Re] * len(alphas)
+                elif directory == 'dat/rennes-dat/case-dat':
+                    name, Re, alphas, Cls, Cds = read_RENcase(file)
+                    name = [name.lower()] * len(alphas)
+                    Re = [Re] * len(alphas)
+                elif directory == 'dat/exp-dat/case-dat':
+                    name, Re, alphas, Cls, Cds = read_EXPcase(file)
 
                 case_df = pd.DataFrame({'file': name, 'Re': Re, 'alpha': alphas, 'Cl': Cls, 'Cd': Cds})
                 cases_df = pd.concat([cases_df, case_df], ignore_index=True)
@@ -192,17 +300,42 @@ def create_cases(directory='dat/case-dat', ext='csv'):
             except Exception as e:
                 pass  # print(e)
 
+    cases_df = cases_df.sort_values(['file', 'Re', 'alpha'], ignore_index=True)
+
     print(f'-Done. DataFrame created successfully with {len(cases_df)} cases.')
     return cases_df
 
 
 def save_cases(df, file):
+    """Saves an aerodynamic coefficient Pandas DataFrame of cases as a '.csv' file.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Pandas DataFrame to save as a '.csv' file.
+    file : 'str'
+        Path for '.csv' file where df will be saved.
+    """
+
     print(f'Saving DataFrame to {file}...')
     df.to_csv(file)
     print('-Done.')
 
 
 def df_from_csv(file):
+    """Reads a '.csv' aerodynamic coefficient file of cases into a Pandas DataFrame.
+
+    Parameters
+    ----------
+    file : str
+        Path to file to be read into a Pandas DataFrame.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        Pandas DataFrame with aerodynamic cases read from the file.
+    """
+
     print(f'Extracting Cases DataFrame from {file}...')
     df = pd.read_csv(file, index_col=0)
 

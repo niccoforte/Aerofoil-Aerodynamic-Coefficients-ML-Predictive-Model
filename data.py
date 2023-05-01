@@ -1,12 +1,27 @@
 import pandas as pd
-from sklearn.utils import shuffle
 import numpy as np
 import math
 import random
+from sklearn.utils import shuffle
+
+import aerofoils
 
 
 def merge(aerofoils_df, cases_df):
-    """ """
+    """Merges two Pandas DataFrames, one containing aerofoil profile geometry information and the other containing
+    aerodynamic coefficient cases, on the 'file' column which is present in both DataFrames and contains the filename of
+    the relevant aerofoil. As several cases (at different Re and AoA) exist for a signle aerofoil geometry, the rows in
+    the geometry DataFrame are duplicated and merged with the matching rows of the coefficient DataFrame.
+
+    Parameters
+    ----------
+    aerofoils_df : pandas.DataFrame
+        Pandas DataFrame containing aerofoil profile geometry information. Format is adapted for DataFrames output by
+        the aerofoils.create_profiles() function.
+    cases_df : pandas.DataFrame
+        Pandas DataFrame aerodynamic coefficit information. Format is adapted for DataFrames output by the
+        cases.create_cases() function.
+    """
 
     print('Merging Aerofoils and Cases DataFrames...')
 
@@ -16,45 +31,163 @@ def merge(aerofoils_df, cases_df):
     data_df = totdata_df.loc[totdata_df._merge == 'both'].drop(columns=['_merge'])
 
     dup, inds = list(data_df.right_index.duplicated()), data_df.index.tolist()
-    dup_inds = [i for i, d in zip(inds,dup) if d == True]
+    dup_inds = [i for i, d in zip(inds, dup) if d is True]
     data_df = data_df[~data_df.index.isin(dup_inds)].drop(columns=['right_index'])
 
-    print(f'-Done. DataFrames merged successfully with a total of {len(data_df)} fianl cases.')
+    print(f'-Done. DataFrames merged successfully with a total of {len(data_df)} final cases.')
 
     return data_df
 
 
-def get_data(df, profiles, nTrain=100, nTest=50):
+def get_data(df1, df2=None, nTrain=100, nTest=50, p_foil=None, p_Re=None):
+    """Arranges input and output data for the training and testing of an MLP Neural Network.
+
+    Parameters
+    ----------
+    df1 : pandas.DataFrame
+        Pandas DataFrame containing Xfoil generated cases.
+        Adapted for DataFrame output by data.merge() function.
+    df2 : pandas.DataFrame, optional
+        Pandas DataFrame containing experimental cases.
+        Adapted for DataFrame output by data.merge() function.
+    nTrain : int, default 100
+        Number of randomly generated aerofoils for which all cases are used to train NN.
+    nTest : int, optional, default 50
+        Number of randomly generated aerofoils for which all cases are used to test NN.
+        Only relevant if df2 and p_foil not defined.
+    p_foil : str, optional
+        Specific aerofoil for which all cases are used to test NN.
+    p_Re : float, optional
+        Specific Reynolds number for which all cases for p_foil are used to test NN.
+
+    Returns
+    -------
+    train_df : pandas.DataFrame
+        Shuffled Pandas DataFrame containing the cases to train NN.
+    test_df : pandas.DataFrame
+        Pandas DataFrame containing the cases to test NN.
+    sample_weights : list
+        List of int weights assigned to cases during training.
+    """
+
     print('Arranging and preparing data for NN inputs and outputs...')
 
-    NNdata_df = df.drop(columns=['spline', 'xy_profile'])
+    NNdata_df = df1.drop(columns=['spline', 'xy_profile'])
 
-    if len(df) > 50000:
-        indxs1 = [random.randint(0, len(profiles)-1) for i in range(nTrain)]
-        names1 = [list(profiles.keys())[indx] for indx in indxs1]
+    if df2 is not None:
+        NNexp_df = df2.drop(columns=['spline', 'xy_profile'])
 
-        # naca_df = NNdata_df[NNdata_df.file.str.contains('naca')]
-        train_df = shuffle(NNdata_df[NNdata_df.file.str.contains("|".join(names1))])  # [:35515] #.sample(frac=0.8))
-        train_df = train_df[~train_df.file.str.contains('goe')]
-        # train_df = train_df[train_df.file != 'goe233']
-        train_df = train_df[train_df.Re != 200000]
+        if p_foil:
+            test_df = NNexp_df[NNexp_df.file == p_foil]
+        else:
+            test_df = NNexp_df
 
-        # indxs2 = [random.randint(0, len(profiles-1)) for i in range(nTest)]
-        # names2 = [list(profiles.keys())[indx] for indx in indxs2 if indx not in indxs1]
+        if p_Re:
+            test_df = test_df[test_df.Re == p_Re]
 
-        # test_df = NNdata_df[~NNdata_df.index.isin(train_df.index)]
-        test_df = NNdata_df[NNdata_df['file'].str.contains('goe')]  # "|".join(names2))]
-        # test_df = NNdata_df[NNdata_df.file == 'goe233']
-        test_df = test_df[test_df.Re == 200000]
+        t_indx = [random.randint(0, len(set(NNdata_df.file)) - 1) for i in range(nTrain)]
+        t_foils = [list(set(NNdata_df.file))[indx] for indx in t_indx]
+        if p_foil:
+            t_foils = [i for i in t_foils if aerofoils.aerofoil_difference(df=df1, name1=i, name2=p_foil) > 0.5]
 
-    elif len(df) < 50000:
-        train_df = NNdata_df
-        test_df = NNdata_df  # [NNdata_df.file == 'tilt']
+        train_df = shuffle(NNdata_df[NNdata_df.file.str.contains("|".join(t_foils))])
+        if p_foil:
+            train_df = train_df[train_df.file != p_foil]
+        if p_Re:
+            train_df = train_df[train_df.Re != p_Re]
 
-    return train_df, test_df
+        train_df['weights'] = [1] * len(train_df)
+
+        if p_foil:
+            Texp_df = NNexp_df[NNexp_df.file != p_foil]
+        else:
+            Texp_df = NNexp_df
+
+        if p_Re:
+            Texp_df = Texp_df[Texp_df.Re != p_Re]
+
+        Texp_df['weights'] = [5] * len(Texp_df)
+        Texp_df.loc[Texp_df.alpha > 10, 'weights'] = 10
+        Texp_df.loc[Texp_df.alpha < -10, 'weights'] = 10
+
+        train_df = train_df[~train_df.file.str.contains("|".join(list(set(Texp_df.file))))]
+
+        train_df = shuffle(pd.concat([train_df, Texp_df]))
+
+        print(f' N. Xfoil Training Aerofoils: {len(set(train_df.file.tolist()))}')
+        print(f' N. Xfoil in Training: {len(train_df)}')
+        print(f' N. Exp. Training Aerofoils: {len(set(Texp_df.file.tolist()))}')
+        print(f' N. Experimental in Training: {len(Texp_df)}')
+
+    else:
+        if p_foil:
+            test_df = NNdata_df[NNdata_df.file == p_foil]
+            if p_Re:
+                test_df = test_df[test_df.Re == p_Re]
+
+            t_indx = [random.randint(0, len(set(NNdata_df.file))-1) for i in range(nTrain)]
+            t_foils = [list(set(NNdata_df.file))[indx] for indx in t_indx]
+            t_foils = [i for i in t_foils if aerofoils.aerofoil_difference(df=df1, name1=i, name2=p_foil) > 0.5]
+
+            train_df = shuffle(NNdata_df[NNdata_df.file.str.contains("|".join(t_foils))])
+            train_df = train_df[train_df.file != p_foil]
+            if p_Re:
+                train_df = train_df[train_df.Re != p_Re]
+
+            print(f' N. Xfoil Training Aerofoils: {len(t_foils)}')
+            print(f' N. Xfoil in Training: {len(train_df)}')
+
+        else:
+            p_indx = [random.randint(0, len(set(NNdata_df.file)) - 1) for i in range(nTest)]
+            p_foils = [list(set(NNdata_df.file))[indx] for indx in p_indx]
+
+            test_df = NNdata_df[NNdata_df['file'].str.contains(f"|".join(p_foils))]
+            if p_Re:
+                test_df = test_df[test_df.Re == p_Re]
+
+            t_indx = [random.randint(0, len(set(df1.file)) - 1) for i in range(nTrain)]
+            t_foils = [list(set(df1.file))[indx] for indx in t_indx if indx not in p_indx]
+
+            train_df = shuffle(NNdata_df[NNdata_df.file.str.contains("|".join(t_foils))])
+            if p_Re:
+                train_df = train_df[train_df.Re != p_Re]
+
+            print(f' N. Xfoil Training Aerofoils: {len(t_foils)}')
+            print(f' N. Xfoil in Training: {len(train_df)}')
+
+        train_df['weights'] = [1] * len(train_df)
+
+    sample_weights = np.array(train_df.weights.tolist())
+
+    return train_df, test_df, sample_weights
 
 
 def prep_data(data):
+    """Transforms training and testing data from Pandas DataFrames into arrays of inputs and outputs compatible for
+    testing and training NN.
+
+    Parameters
+    ----------
+    data : list
+        List of two Pandas DataFrames containing data to train and test NN.
+        Adapted for DataFrames output by data.get(data) function.
+
+    Returns
+    -------
+    train_in : numpy.array
+        Array of input training data of length number of training cases, each containing the aerofoil profile
+        coordinates, Re, and AoA for a specific case.
+    train_out : numpy.array
+        Array of output training data of length number of training cases, each containing the Cl and Cd for a specific
+        case.
+    test_in : numpy.array
+        Array of input testing data of length number of testing cases, each containing the aerofoil profile
+        coordinates, Re, and AoA for a specific case.
+    test_out : numpy.array
+        Array of output testing data of length number of testing cases, each containing the Cl and Cd for a specific
+        case.
+    """
+
     train_in = np.array([[0.0 if math.isnan(y) else y for y in ys_up] +
                          [0.0 if math.isnan(y) else y for y in ys_low] +
                          [float(Re)] + [float(alpha)] for ys_up, ys_low, Re, alpha in
