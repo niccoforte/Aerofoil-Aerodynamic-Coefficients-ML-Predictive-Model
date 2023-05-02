@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Forte"
+  given-names: "Niccolò"
+title: "Aerofoil Aerodynamic Coefficients ML Predictive Model"
+version: 1.0.0
+date-released: 2023-05-01
+url: "https://github.com/niccoforte/Aerofoil-Aerodynamic-Coefficients-ML-Predictive-Model"
