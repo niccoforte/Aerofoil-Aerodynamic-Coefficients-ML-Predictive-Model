@@ -115,7 +115,3 @@ including the aerofoil coordinate files, Xfoil simulation coefficient data, and 
 Structured `.csv` files containing case DataFrames saved by the `cases.py` script are stored in the
 [`dat-saved`](https://github.com/niccoforte/Aerofoil-Aerodynamic-Coefficients-ML-Predictive-Model/tree/main/dat-saved)
 directory.
-
-
-
-## Results
