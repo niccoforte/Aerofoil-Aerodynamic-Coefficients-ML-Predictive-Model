@@ -92,8 +92,8 @@ Functionalities of this script include:
 ## Jupyer Notebooks
 
 Jupyter Notebooks in the 
-[`jupyter` directory](https://github.com/niccoforte/Aerofoil-Aerodynamic-Coefficients-ML-Predictive-Model/tree/main/jupyter) 
-are provided containing the same functionalities as the `.py` scripts subdivided into cells to allow for 
+[`jupyter`](https://github.com/niccoforte/Aerofoil-Aerodynamic-Coefficients-ML-Predictive-Model/tree/main/jupyter) 
+directory are provided containing the same functionalities as the `.py` scripts subdivided into cells to allow for 
 iterations of certain functions without having to run the full software each time. This can prove useful and time-saving 
 when developing new functionalities and defining optimal hyper parameters through iterative training and testing of 
 models. 
@@ -109,11 +109,12 @@ case DataFrames - and the `nnewtwork.ipynb` notebook - producing testing and tra
 ## Data
 
 Raw data is abailable in the 
-[`dat` directory](https://github.com/niccoforte/Aerofoil-Aerodynamic-Coefficients-ML-Predictive-Model/tree/main/dat), 
+[`dat`](https://github.com/niccoforte/Aerofoil-Aerodynamic-Coefficients-ML-Predictive-Model/tree/main/dat) directory, 
 including the aerofoil coordinate files, Xfoil simulation coefficient data, and experimental coefficient data.
 
 Structured `.csv` files containing case DataFrames saved by the `cases.py` script are stored in the
-[`dat-saved` directory](https://github.com/niccoforte/Aerofoil-Aerodynamic-Coefficients-ML-Predictive-Model/tree/main/dat-saved).
+[`dat-saved`](https://github.com/niccoforte/Aerofoil-Aerodynamic-Coefficients-ML-Predictive-Model/tree/main/dat-saved)
+directory.
 
 
 

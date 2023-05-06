@@ -177,7 +177,7 @@ class Model:
 
         fitHistory = self.model.fit(self.train_in, self.train_out, epochs=self.EPOCHS, batch_size=self.BATCH,
                                     validation_split=0.1, verbose=self.verbose, callbacks=self.callbacks,
-                                    sample_weight=self.weights, class_weight={0: 1, 1: 1.5})
+                                    sample_weight=self.weights)  # , class_weight={0: 1, 1: 1.5})
 
         return fitHistory
 
