@@ -562,12 +562,12 @@ def predictions(aerofoils_df, output=None, name=None, re=None, file='results/pre
     if plot:
         print('  And plotting predictions...')
         fig1 = plt.figure(2)
-        fig1.set_figheight(7)
+        fig1.set_figheight(8)
         fig1.set_figwidth(15)
         fig1.suptitle(plot_df.name.tolist()[0].upper() + ' || Re = {:,}'.format(int(plot_df.Re.tolist()[0])),
                       fontsize=22, fontname="Times New Roman", fontweight='bold')
         axs = fig1.subplots(2, 2)
-        fig1.tight_layout(pad=4, h_pad=3.5, w_pad=7)
+        fig1.tight_layout(pad=4, h_pad=5.5, w_pad=7)
 
         axs[0, 0].set_title('Lift Coefficient v. Angle of Attack', fontsize=20, fontname="Times New Roman",
                             fontweight='bold')
