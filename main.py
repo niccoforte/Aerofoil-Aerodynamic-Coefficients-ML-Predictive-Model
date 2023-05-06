@@ -76,14 +76,14 @@ fitHistory = nnetwork.train_metrics(models=models,
                                     df_from='current',
                                     prnt=True,
                                     plot=True)
-metrics_df = nnetwork.pred_metrics(Pmetrics_df,
-                                   models,
-                                   file='results/model-metrics.csv',
-                                   df_from='current',
-                                   models_add=False,
-                                   df_save=False,
-                                   prnt=True,
-                                   plot=True)
+pred_metrics_df = nnetwork.pred_metrics(Pmetrics_df,
+                                        models,
+                                        file='results/metrics/prediction-mets.csv',
+                                        df_from='current',
+                                        add=None,
+                                        df_save=False,
+                                        prnt=True,
+                                        plot=True)
 
 # Predictions.
 plot_df = nnetwork.predictions(output=output_df,
