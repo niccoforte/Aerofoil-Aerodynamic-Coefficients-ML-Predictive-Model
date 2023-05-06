@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+from datetime import datetime
 
 import tensorflow as tf
 from tensorflow import keras
@@ -356,8 +357,8 @@ def model_predict(model, test_in, test_out, test_df):
     return pred, Pmetrics_df, output_df
 
 
-def pred_metrics(Pmetrics_df, models, file='results/model-metrics.csv', df_from='current', models_add=False, df_save=False,
-                 prnt=False, plot=False):
+def pred_metrics(Pmetrics_df, models, file='results/metrics/prediction-mets.csv', df_from='current', add=False,
+                 df_save=False, prnt=False, plot=False):
     """Function to handle the prediction metrics in a variety of way depending by choice of parameters."""
 
     print("Extracting metrics on the model's predictions...")
@@ -365,6 +366,7 @@ def pred_metrics(Pmetrics_df, models, file='results/model-metrics.csv', df_from=
     if df_from == 'current':
         print(' From current model...')
         metrics_df = Pmetrics_df
+        metrics_df['DateTime'] = [str(datetime.now())] * len(metrics_df)
 
     elif df_from == 'models':
         print(' From model(s) in "models" dictionary...')
@@ -372,21 +374,24 @@ def pred_metrics(Pmetrics_df, models, file='results/model-metrics.csv', df_from=
         for name, model in models.items():
             new_row = model.Pmetrics_df
             metrics_df = pd.concat([metrics_df, new_row], ignore_index=True)
+        metrics_df['DateTime'] = [str(datetime.now())] * len(metrics_df)
 
     elif df_from == 'file':
         print(f' From model(s) in {file}...')
         metrics_df = pd.read_csv(file, index_col=0)
 
-    elif df_from == 'new':
-        print(' Without any model...')
-        metrics_df = pd.Dataframe(columns=['name', 'ACC_cl', 'ACC_cd', 'ACC', 'MAE_cl', 'MAE_cd', 'MAE',
-                                           'R2_cl', 'R2_cd', 'MSE_cl', 'MSE_cd', 'MSE', 'RMSE_cl', 'RMSE_cd', 'RMSE'])
-
-    if models_add:
-        print('  Including models from "models" dictionary...')
-        for name, model in models.items():
-            new_row = model.Pmetrics_df
+        if add == 'current':
+            print('  Including current model...')
+            new_row = Pmetrics_df
+            new_row['DateTime'] = [str(datetime.now())] * len(new_row)
             metrics_df = pd.concat([metrics_df, new_row], ignore_index=True)
+
+        if add == 'models':
+            print('  Including models from "models" dictionary...')
+            for name, model in models.items():
+                new_row = model.Pmetrics_df
+                new_row['DateTime'] = [str(datetime.now())] * len(new_row)
+                metrics_df = pd.concat([metrics_df, new_row], ignore_index=True)
 
     if df_save:
         print(f'  And saving all metrics to {file}...')
@@ -396,12 +401,12 @@ def pred_metrics(Pmetrics_df, models, file='results/model-metrics.csv', df_from=
         print('  And printing metrics...')
         print('   === PREDICTION METRICS ===')
         for index, row in metrics_df.iterrows():
-            print(f'    Model: {row[0]}.')
-            print(f'ACC:   CL: {round(row[1], 5)} and CD: {round(row[2], 5)} and ALL: {round(row[3], 4)}.')
-            print(f'MAE:   CL: {round(row[4], 5)} and CD: {round(row[5], 5)} and ALL: {round(row[6], 4)}.')
-            print(f'R2:    CL: {round(row[7], 5)} and CD: {round(row[8], 5)}.')
-            print(f'MSE:   CL: {round(row[9], 5)} and CD: {round(row[10], 7)} and ALL: {round(row[11], 4)}.')
-            print(f'RMSE:  CL: {round(row[12], 5)} and CD: {round(row[13], 5)} and ALL: {round(row[14], 4)}.')
+            print(f'    MODEL: {row[0]}.')
+            print(f'      ACC:  CL: {round(row[1], 6)} and CD: {round(row[2], 6)} and ALL: {round(row[3], 6)}.')
+            print(f'      MAE:  CL: {round(row[4], 6)} and CD: {round(row[5], 6)} and ALL: {round(row[6], 6)}.')
+            print(f'       R2:  CL: {round(row[7], 6)} and CD: {round(row[8], 6)}.')
+            print(f'      MSE:  CL: {round(row[9], 6)} and CD: {round(row[10], 6)} and ALL: {round(row[11], 6)}.')
+            print(f'     RMSE:  CL: {round(row[12], 6)} and CD: {round(row[13], 6)} and ALL: {round(row[14], 6)}.')
 
     if plot:
         print('  And plotting metrics...')
