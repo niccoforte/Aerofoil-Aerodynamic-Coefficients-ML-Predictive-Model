@@ -149,8 +149,8 @@ def get_RENNES_foils(directory='dat/rennes-dat/aerofoil-dat'):
 
 
 def create_profiles(directory='dat/aerofoil-dat', ext='dat', points=51, prnt=False):
-    """Generates a dictionary of Profile names and objects and a Pandas DataFrame where rows contain elements of
-    Profiles from a directory containing given coordinate files.
+    """Generates Profile objects from a directory of aerofoil coordinate files and returns a dictionary of aerofoil
+     names to objects and a Pandas DataFrame of object attibutes.
 
     Parameters
     ----------
@@ -168,7 +168,8 @@ def create_profiles(directory='dat/aerofoil-dat', ext='dat', points=51, prnt=Fal
     profiles : dict
         Dictionary of aerofoil profile names and objects.
     aerofoils_df : pandas.DataFrame
-        DataFrame of name, filename, x, y_up, y_low coordinates, spline functions, and xy_profiles for profile objects.
+        DataFrame of names, filenames, x, y_up, y_low coordinates, spline functions, and xy_profiles for profiles
+        objects.
     """
 
     if directory == 'dat/aerofoil-dat':
