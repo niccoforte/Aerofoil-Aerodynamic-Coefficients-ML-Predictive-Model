@@ -34,14 +34,14 @@ A working scenario is set-up as default.
 Coordinate files to represent aerofoil geometries are processes in the `aerofoils.py` script. Files are downloaded from 
 online databases including the [UIUC Airfoil Coordinates Database](https://m-selig.ae.illinois.edu/ads/coord_database.html) 
 and the [Airfoil Tools Airfoil Database](http://airfoiltools.com/search/airfoils). The coordinates within each `.dat` 
-file are read, reformatted, and $$y$$-coordiantes are reproduced at consistent cosine-spaced $$x$$-locations by fitting 
+file are read, reformatted, and y-coordiantes are reproduced at consistent cosine-spaced x-locations by fitting 
 of a cubic spline for all aerofoils. Profile objects with geometrical information are created to represent each aerofoil 
 profile, which are collected in a dictionary and Pandas DataFrame.
 
 Functionalities of this script include:
 - Download coordinate `.dat` files for 1,600+ aerofoils.
 - Reshape coordinates between (0, 0) and (1, 0).
-- Reproduce $$y$$-coordinates at consistent cosined space $$x$$-locations.
+- Reproduce $y$-coordinates at consistent cosined space x-locations.
 - Fit smooth cubic spline through coordinates.
 - Structure data into dictionary of Profile objects & Pandas DataFrame.
 
