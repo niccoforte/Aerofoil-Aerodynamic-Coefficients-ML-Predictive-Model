@@ -5,36 +5,68 @@ import nnetwork
 import pandas as pd
 
 
+def set_up(_reset=False, _ren=False):
+    """ Set-up options for running main.py.
+
+    Parameters
+    ----------
+    _reset : bool, default False
+        If True checks for new files to download from online databases to 'dat/' directories, creates case DataFrames
+        from scratch, and saves them by overwriting files in 'dat-saved/' directory. Otherwise uses files already
+        present in these directories.
+    _ren : bool, default False
+        If True runs the script for the profile corrdinates and coefficients downloaded from the study conducted by
+        the Université de Rennes. Note NN training and testing will be done using this data too. Otherwise the script
+        use profile coordinates and coefficients from UIUC and Airfoil Tools.
+    """
+
+    return _reset, _ren
+
+
+reset, ren = set_up(_reset=False, _ren=False)
+
+
 # Download aerofoil .dat files to 'dat/aerofoil-dat' directory and case .csv files to 'dat/case-dat' directory.
-#aerofoils.get_UIUC_foils(directory='dat/aerofoil-dat')
-#aerofoils.get_AFT_foils(directory='dat/aerofoil-dat')
-#aerofoils.get_RENNES_foils(directory='dat/rennes-dat/aerofoil-dat')
-#cases.get_AFT_cases(directory='dat/case-dat')
-#cases.get_RENNES_cases(directory='dat/rennes-dat/case-dat')
+if reset is True:
+    aerofoils.get_UIUC_foils(directory='dat/aerofoil-dat')
+    aerofoils.get_AFT_foils(directory='dat/aerofoil-dat')
+    cases.get_AFT_cases(directory='dat/case-dat')
+
+    if ren is True:
+        aerofoils.get_RENNES_foils(directory='dat/rennes-dat/aerofoil-dat')
+        cases.get_RENNES_cases(directory='dat/rennes-dat/case-dat')
 
 
 # Create dictionary of Profile objects and Aerofoils DataFrame.
 profiles, aerofoils_df = aerofoils.create_profiles(directory='dat/aerofoil-dat', points=51, prnt=False)
-ren_profiles, ren_aerofoils_df = aerofoils.create_profiles(directory='dat/rennes-dat/aerofoil-dat', points=51, prnt=False)
+
+if ren is True:
+    ren_profiles, ren_aerofoils_df = aerofoils.create_profiles(directory='dat/rennes-dat/aerofoil-dat', points=51, prnt=False)
 
 
 # Create DataFrame of case data.
-#cases_df = cases.create_cases(directory='dat/case-dat', ext='csv')
-#cases.save_cases(df=cases_df, file='dat-saved/cases-df.csv')
-#ren_cases_df = cases.create_cases(directory='dat/rennes-dat/case-dat', ext='txt')
-#cases.save_cases(df=ren_cases_df, file='dat-saved/ren-cases-df.csv')
-#exp_cases_df = cases.create_cases(directory='dat/exp-dat/case-dat', ext='csv')
-#cases.save_cases(df=exp_cases_df, file='dat-saved/exp-cases-df.csv')
+if reset is True:
+    cases_df = cases.create_cases(directory='dat/case-dat', ext='csv')
+    cases.save_cases(df=cases_df, file='dat-saved/cases-df.csv')
+    exp_cases_df = cases.create_cases(directory='dat/exp-dat/case-dat', ext='csv')
+    cases.save_cases(df=exp_cases_df, file='dat-saved/exp-cases-df.csv')
 
-cases_df = cases.df_from_csv(file='dat-saved/cases-df.csv')
-ren_cases_df = cases.df_from_csv(file='dat-saved/ren-cases-df.csv')
-exp_cases_df = cases.df_from_csv(file='dat-saved/exp-cases-df.csv')
+    if ren is True:
+        ren_cases_df = cases.create_cases(directory='dat/rennes-dat/case-dat', ext='txt')
+        cases.save_cases(df=ren_cases_df, file='dat-saved/ren-cases-df.csv')
+
+if reset is False:
+    cases_df = cases.df_from_csv(file='dat-saved/cases-df.csv')
+    ren_cases_df = cases.df_from_csv(file='dat-saved/ren-cases-df.csv')
+    exp_cases_df = cases.df_from_csv(file='dat-saved/exp-cases-df.csv')
 
 
 # Merge aerofoils and cases dataframes.
 data_df = data.merge(aerofoils_df, cases_df)
-ren_data_df = data.merge(ren_aerofoils_df, ren_cases_df)
 exp_data_df = data.merge(aerofoils_df, exp_cases_df)
+
+if ren is True:
+    ren_data_df = data.merge(ren_aerofoils_df, ren_cases_df)
 
 
 # Prepare & get NN inputs & outputs.
@@ -42,9 +74,10 @@ train_df, test_df, sample_weights = data.get_data(df1=data_df, df2=exp_data_df, 
 train_in, train_out, test_in, test_out = data.prep_data(data=[train_df, test_df])
 dat = [train_in, train_out, test_in, test_out]
 
-#ren_train_df, ren_test_df, sample_weights = data.get_data(df1=ren_data_df, df2=exp_data_df, nTrain=250, nTest=50, p_foil='n0012', p_Re=1000000)
-#ren_train_in, ren_train_out, ren_test_in, ren_test_out = data.prep_data(data=[ren_train_df, ren_test_df])
-#ren_dat = [ren_train_in, ren_train_out, ren_test_in, ren_test_out]
+if ren is True:
+    ren_train_df, ren_test_df, sample_weights = data.get_data(df1=ren_data_df, df2=exp_data_df, nTrain=250, nTest=50, p_foil='n0012', p_Re=1000000)
+    ren_train_in, ren_train_out, ren_test_in, ren_test_out = data.prep_data(data=[ren_train_df, ren_test_df])
+    dat = [ren_train_in, ren_train_out, ren_test_in, ren_test_out]
 
 
 # Build model(s), train using training data, & predict using testing data.
