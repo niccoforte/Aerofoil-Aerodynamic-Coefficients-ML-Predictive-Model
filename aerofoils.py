@@ -181,7 +181,7 @@ def create_profiles(directory='dat/aerofoil-dat', ext='dat', points=51, prnt=Fal
     for file in os.scandir(directory):
         if file.name.endswith('.' + ext):
             try:
-                p = Profile(file, points=points, prnt=prnt)
+                p = Profile(str(file), points=points, prnt=prnt)
                 file_name = str(p.file)
                 profiles[file_name] = p
 
@@ -375,7 +375,6 @@ class Profile:
             self.spline_xs = self.x_distribution()
             self.splines, self.spline_funcs = self.get_spline()
 
-
     def coord_profile(self):
         """Reads coordinate files, separates upper and lower profiles, scales leading and trailing edge between (0, 0)
         and (1, 0), and prepares corrdinates for interpolative function.
@@ -560,7 +559,6 @@ class Profile:
 
         return name, file, coords_up, coords_low, x, y, xy_profile
 
-
     def x_distribution(self):
         """Creates a set of cosine spaces x-coordinates between 0 and 1. Quantity defined by 'points' parameter.
 
@@ -575,7 +573,6 @@ class Profile:
         spline_xs = 0.5 * (1 - np.cos(spline_xs_lin))
 
         return spline_xs
-
 
     def get_spline(self):
         """Re-creates upper and lower profiles by evaluating their y-coordinates at the cosine spaced x-coordinates
