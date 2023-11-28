@@ -182,7 +182,7 @@ def create_profiles(directory='dat/aerofoil-dat', ext='dat', points=51, prnt=Fal
     for file in os.scandir(directory):
         if file.name.endswith('.' + ext):
             try:
-                p = Profile(str(file), points=points, prnt=prnt)
+                p = Profile(file, points=points, prnt=prnt)
                 file_name = str(p.file)
                 profiles[file_name] = p
 
