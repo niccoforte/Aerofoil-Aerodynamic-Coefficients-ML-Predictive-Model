@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+import os
 from datetime import datetime
 
 import tensorflow as tf
@@ -63,6 +64,7 @@ class Model:
         Learning rate for model optimizer during training.
     verbose : int, default 0
         Keras verbosity mode. 0 = silent, 1 = progress bar, 2 = single line.
+        If 1, also prints model summary.
     callbacks : bool, default False
         If True, applies callbacks as defined in train() during training. Otherwise callbacks not applied.
 
@@ -291,6 +293,7 @@ def run_Model(data, neurons, activation, weights, test_df, EPOCHS=50, BATCH=256,
         Learning rate for model optimizer during training.
     verbose : int, default 0
         Keras verbosity mode. 0 = silent, 1 = progress bar, 2 = single line.
+        If 1, also prints model summary.
     callbacks : bool, default False
         If True, applies callbacks as defined in train() during training. Otherwise callbacks not applied.
 
@@ -528,7 +531,7 @@ def train_metrics(models, mets=['loss', 'ACC', 'MAE'], df_from='current', prnt=F
     return fitHistory
 
 
-def predictions(aerofoils_df, output=None, name=None, re=None, file='results/predictions.csv', df_from='current',
+def predictions(aerofoils_df, output_df=None, name=None, re=None, file='results/predictions.csv', df_from='current',
                 model_add=False, df_save=False, plot=True, err=False):
     """Function to handle the predictions in a variety of way depending by choice of parameters."""
 
@@ -536,7 +539,7 @@ def predictions(aerofoils_df, output=None, name=None, re=None, file='results/pre
 
     if df_from == 'current':
         print(' From current model...')
-        df = output
+        df = output_df
 
     elif df_from == 'file':
         print(f' From model(s) in {file}...')
@@ -544,7 +547,7 @@ def predictions(aerofoils_df, output=None, name=None, re=None, file='results/pre
 
     if model_add:
         print('  Including new model predictions...')
-        new_row = output
+        new_row = output_df
         df = pd.concat([df, new_row], ignore_index=True)
 
     if df_save:

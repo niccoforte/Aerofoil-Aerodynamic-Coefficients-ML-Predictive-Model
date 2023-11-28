@@ -70,7 +70,7 @@ if ren is True:
 
 
 # Prepare & get NN inputs & outputs.
-train_df, test_df, sample_weights = data.get_data(df1=data_df, df2=exp_data_df, nTrain=250, nTest=50, p_foil='n0012', p_Re=1000000)
+train_df, test_df, sample_weights = data.get_data(df1=data_df, df2=None, nTrain=250, nTest=50)  # , p_foil='n0012', p_Re=1000000)
 train_in, train_out, test_in, test_out = data.prep_data(data=[train_df, test_df])
 dat = [train_in, train_out, test_in, test_out]
 
@@ -89,7 +89,7 @@ models = nnetwork.run_Model(data=dat,
                             activation=activations,
                             weights=sample_weights,
                             test_df=test_df,
-                            EPOCHS=10,
+                            EPOCHS=5,
                             BATCH=256,
                             lr=0.001,
                             verbose=0,
@@ -109,8 +109,8 @@ fitHistory = nnetwork.train_metrics(models=models,
                                     df_from='current',
                                     prnt=True,
                                     plot=True)
-pred_metrics_df = nnetwork.pred_metrics(Pmetrics_df,
-                                        models,
+pred_metrics_df = nnetwork.pred_metrics(Pmetrics_df=Pmetrics_df,
+                                        models=models,
                                         file='results/metrics/prediction-mets.csv',
                                         df_from='current',
                                         add=None,
@@ -119,7 +119,7 @@ pred_metrics_df = nnetwork.pred_metrics(Pmetrics_df,
                                         plot=True)
 
 # Predictions.
-plot_df = nnetwork.predictions(output=output_df,
+plot_df = nnetwork.predictions(output_df=output_df,
                                name='n0012',
                                re=1000000,
                                file='results/predictions.csv',
