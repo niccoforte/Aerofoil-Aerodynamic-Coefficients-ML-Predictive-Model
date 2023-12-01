@@ -2,6 +2,7 @@ import aerofoils
 import cases
 import data
 import nnetwork
+import saved
 import pandas as pd
 
 
@@ -99,6 +100,11 @@ pred, Pmetrics_df, output_df = model.pred, model.Pmetrics_df, model.output_df
 fitHistory, fitHistory_df, ev_df = model.fitHistory, model.fitHistory_df, model.ev_df  # TODO: REMOVE fitHistory
 
 
+#Load model and results
+#_model = saved.load_model(directory='models/MLP-Sigmoid')
+#output_df, Pmetrics_df, fitHistory_df, ev_df = saved.load_results(directory='models/MLP-Sigmoid', pred='n0012-700000.0')
+
+
 # Predict using testing data.
 #pred, Pmetrics_df, output_df = nnetwork.model_predict(_model=_model, test_in=test_in, test_out=test_out, test_df=test_df)
 #pred, Pmetrics_df, output_df = nnetwork.model_predict(model=model, test_in=ren_test_in, test_out=ren_test_out, test_df=ren_test_df)
@@ -125,6 +131,11 @@ nnetwork.predictions(output_df=output_df,
                      aerofoils_df=aerofoils_df,
                      plot=True,
                      err=True)
+
+
+# Save model and results.
+saved.save_model(_model=_model)
+saved.save_results(_model=_model, output_df=output_df, Pmetrics_df=Pmetrics_df, fitHistory_df=fitHistory_df, ev_df=ev_df)
 
 
 #########################################################################################################
