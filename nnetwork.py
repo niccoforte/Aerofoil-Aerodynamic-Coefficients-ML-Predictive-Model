@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import os
-from datetime import datetime
 
 import tensorflow as tf
 from tensorflow import keras
@@ -88,7 +87,7 @@ class Model:
     """
 
     def __init__(self, data, neurons, activation, weights, name, test_df, EPOCHS=50, BATCH=256, lr=0.001, verbose=0,
-                 callbacks=False):
+                 callbacks=None):
         self.train_in = data[0]
         self.train_out = data[1]
         self.test_in = data[2]
@@ -106,8 +105,10 @@ class Model:
 
         self.model = None
         self.fitHistory = None
+        self.fitHistory_df = None
         self.trainEv = None
         self.testEv = None
+        self.ev_df = None
         self.pred = None
         self.Pmetrics_df = None
         self.output_df = None
@@ -116,13 +117,14 @@ class Model:
         self.model = self.build_MLP()
         print(' -Done. Model successfully built.')
         print(' Training model...')
-        self.fitHistory = self.train()
+        self.fitHistory, self.fitHistory_df = self.train()
         print(' -Done. Model successully trained.')
         print(' Evaluating model on training and testing data...')
-        self.trainEv, self.testEv = self.evaluate()
+        self.trainEv, self.testEv, self.ev_df = self.evaluate()
         print(' -Done. Model evaluations printed above.')
         print(' Predicting on testing data...')
-        self.pred, self.Pmetrics_df, self.output_df = self.predict()
+        self.pred, self.Pmetrics_df, self.output_df = self.predict(model=self.model, test_in=self.test_in,
+                                                                   test_out=self.test_out, test_df=self.test_df)
         print(' -Done. Predictions made and metrics on predictions evaluated.')
 
     def build_MLP(self):
@@ -134,7 +136,7 @@ class Model:
             Model with architecture and hyperparameters as defined in the build_MLP() function.
         """
 
-        model = Sequential(name='MLP')
+        model = Sequential(name=self.name)
 
         model.add(InputLayer(input_shape=len(self.train_in[0])))
         model.add(BatchNormalization())
@@ -176,13 +178,15 @@ class Model:
         reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.25, patience=5, verbose=self.verbose,
                                       min_delta=1e-4, mode='min')
         if self.callbacks:
-            self.callbacks = [reduce_lr]   # , early_stop]
+            self.callbacks = [reduce_lr]  # , early_stop]
 
         fitHistory = self.model.fit(self.train_in, self.train_out, epochs=self.EPOCHS, batch_size=self.BATCH,
                                     validation_split=0.1, verbose=self.verbose, callbacks=self.callbacks,
-                                    sample_weight=self.weights)  # , class_weight={0: 1, 1: 1.5})
+                                    sample_weight=self.weights)  # , class_weight={0:1, 1:1.5})
 
-        return fitHistory
+        fitHistory_df = pd.DataFrame(fitHistory.history)
+
+        return fitHistory, fitHistory_df
 
     def evaluate(self):
         """Evaluates trained model on training and testing data in batch sizes.
@@ -198,9 +202,14 @@ class Model:
         trainEv = self.model.evaluate(self.train_in, self.train_out, batch_size=self.BATCH)
         testEv = self.model.evaluate(self.test_in, self.test_out, batch_size=self.BATCH)
 
-        return trainEv, testEv
+        ev_df = pd.DataFrame(columns=list(self.fitHistory_df.columns[:7]))
+        ev_df.loc[0] = trainEv
+        ev_df.loc[1] = testEv
 
-    def predict(self, test_in=None, test_out=None, test_df=None):
+        return trainEv, testEv, ev_df
+
+    @classmethod
+    def predict(self, model, test_in, test_out, test_df):
         """Creates predictions on testing inputs using trained model.
 
         Parameters
@@ -223,12 +232,7 @@ class Model:
             drag, and L/D values.
         """
 
-        if test_in is None:
-            test_in = self.test_in
-            test_out = self.test_out
-            test_df = self.test_df
-
-        pred = self.model.predict(test_in)
+        pred = model.predict(test_in)
 
         clp = [p[0] for p in pred]
         cdp = [p[1] for p in pred]
@@ -253,7 +257,7 @@ class Model:
         RMSE_cl = math.sqrt(MSE_cl)
         RMSE_cd = math.sqrt(MSE_cd)
         RMSE = math.sqrt(MSE)
-        Pmetrics_df = pd.DataFrame({'name': [str(self.name)],
+        Pmetrics_df = pd.DataFrame({'name': [str(model.name)],
                                     'ACC_cl': [float(ACC_cl)], 'ACC_cd': [float(ACC_cd)], 'ACC': [float(ACC)],
                                     'MAE_cl': [float(MAE_cl)], 'MAE_cd': [float(MAE_cd)], 'MAE': [float(MAE)],
                                     'R2_cl': [float(R2_cl)], 'R2_cd': [float(R2_cd)],
@@ -270,7 +274,7 @@ class Model:
         return pred, Pmetrics_df, output_df
 
 
-def run_Model(data, neurons, activation, weights, test_df, EPOCHS=50, BATCH=256, lr=0.1, verbose=0, callbacks=False):
+def run_Model(data, neurons, activation, weights, test_df, EPOCHS=50, BATCH=256, lr=0.1, verbose=0, callbacks=None):
     """Creates a dictionary of NN model names and objects.
 
     Parameters
@@ -307,8 +311,12 @@ def run_Model(data, neurons, activation, weights, test_df, EPOCHS=50, BATCH=256,
 
     models = {}
     for act in activation:
-        name = act.upper()
-        print(f' ====  {name}  ====')
+        name = f'MLP-{act.capitalize()}'
+        dup = len([i for i in os.scandir('models/') if name in str(i)])
+        if dup >= 1:
+            name = f'{name}-{dup}'
+
+        print(f'  ====  {name}  ====')
         model = Model(data=data,
                       neurons=neurons,
                       activation=act,
@@ -323,11 +331,11 @@ def run_Model(data, neurons, activation, weights, test_df, EPOCHS=50, BATCH=256,
 
         models[name] = model
 
-    print('-Done. Model(s) saved in "models" dictionary.')
+    print('-Done. Model(s) stored in "models" dictionary.')
     return models
 
 
-def model_predict(model, test_in, test_out, test_df):
+def model_predict(_model, test_in, test_out, test_df):
     """Creates predictions on testing inputs using trained model by running the model.predict() class function.
 
     Parameters
@@ -354,14 +362,13 @@ def model_predict(model, test_in, test_out, test_df):
 
     print('Predicting on testing data...')
 
-    pred, Pmetrics_df, output_df = model.predict(test_in, test_out, test_df)
+    pred, Pmetrics_df, output_df = Model.predict(model=_model, test_in=test_in, test_out=test_out, test_df=test_df)
 
     print('-Done. Predictions made and metrics on predictions evaluated.')
     return pred, Pmetrics_df, output_df
 
 
-def pred_metrics(Pmetrics_df, models, file='results/metrics/prediction-mets.csv', df_from='current', add=False,
-                 df_save=False, prnt=False, plot=False):
+def pred_metrics(Pmetrics_df, models=None, df_from='current', prnt=False, plot=False):
     """Function to handle the prediction metrics in a variety of way depending by choice of parameters."""
 
     print("Extracting metrics on the model's predictions...")
@@ -369,7 +376,6 @@ def pred_metrics(Pmetrics_df, models, file='results/metrics/prediction-mets.csv'
     if df_from == 'current':
         print(' From current model...')
         metrics_df = Pmetrics_df
-        metrics_df['DateTime'] = [str(datetime.now())] * len(metrics_df)
 
     elif df_from == 'models':
         print(' From model(s) in "models" dictionary...')
@@ -377,28 +383,6 @@ def pred_metrics(Pmetrics_df, models, file='results/metrics/prediction-mets.csv'
         for name, model in models.items():
             new_row = model.Pmetrics_df
             metrics_df = pd.concat([metrics_df, new_row], ignore_index=True)
-        metrics_df['DateTime'] = [str(datetime.now())] * len(metrics_df)
-
-    elif df_from == 'file':
-        print(f' From model(s) in {file}...')
-        metrics_df = pd.read_csv(file, index_col=0)
-
-        if add == 'current':
-            print('  Including current model...')
-            new_row = Pmetrics_df
-            new_row['DateTime'] = [str(datetime.now())] * len(new_row)
-            metrics_df = pd.concat([metrics_df, new_row], ignore_index=True)
-
-        if add == 'models':
-            print('  Including models from "models" dictionary...')
-            for name, model in models.items():
-                new_row = model.Pmetrics_df
-                new_row['DateTime'] = [str(datetime.now())] * len(new_row)
-                metrics_df = pd.concat([metrics_df, new_row], ignore_index=True)
-
-    if df_save:
-        print(f'  And saving all metrics to {file}...')
-        metrics_df.to_csv(file)
 
     if prnt:
         print('  And printing metrics...')
@@ -451,18 +435,18 @@ def pred_metrics(Pmetrics_df, models, file='results/metrics/prediction-mets.csv'
         plt.show()
 
     print('-Done. Prediction metrics processed as chosen.')
-    return metrics_df
+    return
 
 
-def train_metrics(models, mets=['loss', 'ACC', 'MAE'], df_from='current', prnt=False, plot=False):
+def train_metrics(model, models, mets=['loss', 'ACC', 'MAE'], df_from='current', prnt=False, plot=False):
     """Function to handle the training metrics in a variety of way depending by choice of parameters."""
 
     print("Extracting metrics from the model's training...")
 
     if df_from == 'current':
         print(' From current model...')
-        models = {list(models.keys())[0]: list(models.values())[0]}
-        fitHistory = list(models.values())[0].fitHistory
+        models = {model.name: model}
+        fitHistory = model.fitHistory
 
     elif df_from == 'models':
         print(' From model(s) in "models" dictionary...')
@@ -528,42 +512,27 @@ def train_metrics(models, mets=['loss', 'ACC', 'MAE'], df_from='current', prnt=F
         plt.show()
 
     print('-Done. Training metrics processed as chosen.')
-    return fitHistory
+    return
 
 
-def predictions(aerofoils_df, output_df=None, name=None, re=None, file='results/predictions.csv', df_from='current',
-                model_add=False, df_save=False, plot=True, err=False):
+def predictions(aerofoils_df, output_df=None, name=None, re=None, plot=True, err=False):
+
     """Function to handle the predictions in a variety of way depending by choice of parameters."""
 
     print("Handling model's predictions...")
 
-    if df_from == 'current':
-        print(' From current model...')
-        df = output_df
-
-    elif df_from == 'file':
-        print(f' From model(s) in {file}...')
-        df = pd.read_csv(file, index_col=0)
-
-    if model_add:
-        print('  Including new model predictions...')
-        new_row = output_df
-        df = pd.concat([df, new_row], ignore_index=True)
-
-    if df_save:
-        print(f'  And saving all predictions to {file}...')
-        df.to_csv(file)
+    df = output_df
 
     NAMEs = list(set(df.file.tolist()))
     REs = list(set(df.Re.tolist()))
-    print('   REs   - ', [re for re in REs])
-    print('   Names - ', [name for name in NAMEs])
+    print('  REs   - ', [re for re in REs])
+    print('  Names - ', [name for name in NAMEs])
 
     plot_df = df[df.Re == re]
     plot_df = plot_df[plot_df.file == name]
 
     if plot:
-        print('  And plotting predictions...')
+        print(' And plotting predictions...')
         fig1 = plt.figure(2)
         fig1.set_figheight(8)
         fig1.set_figwidth(15)
@@ -629,4 +598,4 @@ def predictions(aerofoils_df, output_df=None, name=None, re=None, file='results/
         plt.show()
 
     print('-Done. Predictions processed as chosen.')
-    return plot_df
+    return

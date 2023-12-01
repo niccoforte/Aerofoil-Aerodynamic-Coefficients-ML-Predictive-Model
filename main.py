@@ -82,8 +82,7 @@ if ren is True:
 
 # Build model(s), train using training data, & predict using testing data.
 neurons = [[512, 256, 128, 64, 32, 16], [1, 2, 3, 4]]
-activations = ['sigmoid']  # , 'hard_sigmoid', 'softmax', 'softsign', 'leakyrelu', 'selu', 'elu', 'prelu', 'tanh']
-activationz = ['swish', 'softplus', 'relu', 'gelu']
+activations = ['sigmoid']
 models = nnetwork.run_Model(data=dat,
                             neurons=neurons,
                             activation=activations,
@@ -95,43 +94,43 @@ models = nnetwork.run_Model(data=dat,
                             verbose=0,
                             callbacks=True)
 model = list(models.values())[0]
+_model = model.model
 pred, Pmetrics_df, output_df = model.pred, model.Pmetrics_df, model.output_df
+fitHistory, fitHistory_df, ev_df = model.fitHistory, model.fitHistory_df, model.ev_df  # TODO: REMOVE fitHistory
 
 
 # Predict using testing data.
-#pred, Pmetrics_df, output_df = nnetwork.model_predict(model=model, test_in=test_in, test_out=test_out, test_df=test_df)
+#pred, Pmetrics_df, output_df = nnetwork.model_predict(_model=_model, test_in=test_in, test_out=test_out, test_df=test_df)
 #pred, Pmetrics_df, output_df = nnetwork.model_predict(model=model, test_in=ren_test_in, test_out=ren_test_out, test_df=ren_test_df)
 
 
-#  Training and prediction metrics.
-fitHistory = nnetwork.train_metrics(models=models,
-                                    mets=['loss', 'ACC'],
-                                    df_from='current',
-                                    prnt=True,
-                                    plot=True)
-pred_metrics_df = nnetwork.pred_metrics(Pmetrics_df=Pmetrics_df,
-                                        models=models,
-                                        file='results/metrics/prediction-mets.csv',
-                                        df_from='current',
-                                        add=None,
-                                        df_save=False,
-                                        prnt=True,
-                                        plot=True)
+# Training and prediction metrics.
+nnetwork.train_metrics(model=model,
+                       models=models,
+                       mets=['loss', 'ACC'],
+                       df_from='current',
+                       prnt=True,
+                       plot=True)
+nnetwork.pred_metrics(Pmetrics_df=Pmetrics_df,
+                      models=models,
+                      df_from='current',
+                      prnt=True,
+                      plot=True)
+
 
 # Predictions.
-plot_df = nnetwork.predictions(output_df=output_df,
-                               name='n0012',
-                               re=1000000,
-                               file='results/predictions.csv',
-                               df_from='current',
-                               aerofoils_df=aerofoils_df,
-                               model_add=False,
-                               df_save=False,
-                               plot=True,
-                               err=True)
+nnetwork.predictions(output_df=output_df,
+                     name='n0012',
+                     re=1000000,
+                     aerofoils_df=aerofoils_df,
+                     plot=True,
+                     err=True)
 
 
-####################################################################
+#########################################################################################################
+###############################################  EXTRA  #################################################
+#########################################################################################################
+
 # ----- Print DF
 #pd.set_option('display.max_columns', None)
 #print(data_df)
@@ -139,4 +138,6 @@ plot_df = nnetwork.predictions(output_df=output_df,
 # ----- Aerofoil Plots
 #aindx = aerofoils_df.loc[aerofoils_df.file == 'goe10k'].index[0]
 #aerofoils.plot_profile(aerofoils_df, aindx, scatt=True, x_val=0.3, pltfig=1, prnt=True)
-####################################################################
+
+#########################################################################################################
+#########################################################################################################
