@@ -97,7 +97,7 @@ models = nnetwork.run_Model(data=dat,
 model = list(models.values())[0]
 _model = model.model
 pred, Pmetrics_df, output_df = model.pred, model.Pmetrics_df, model.output_df
-fitHistory, fitHistory_df, ev_df = model.fitHistory, model.fitHistory_df, model.ev_df  # TODO: REMOVE fitHistory
+fitHistory_df, ev_df = model.fitHistory_df, model.ev_df
 
 
 #Load model and results
@@ -107,19 +107,17 @@ fitHistory, fitHistory_df, ev_df = model.fitHistory, model.fitHistory_df, model.
 
 # Predict using testing data.
 #pred, Pmetrics_df, output_df = nnetwork.model_predict(_model=_model, test_in=test_in, test_out=test_out, test_df=test_df)
-#pred, Pmetrics_df, output_df = nnetwork.model_predict(model=model, test_in=ren_test_in, test_out=ren_test_out, test_df=ren_test_df)
+#pred, Pmetrics_df, output_df = nnetwork.model_predict(_model=_model, test_in=ren_test_in, test_out=ren_test_out, test_df=ren_test_df)
 
 
 # Training and prediction metrics.
 nnetwork.train_metrics(model=model,
-                       models=models,
+                       models=None,             # models,
                        mets=['loss', 'ACC'],
-                       df_from='current',
                        prnt=True,
                        plot=True)
 nnetwork.pred_metrics(Pmetrics_df=Pmetrics_df,
-                      models=models,
-                      df_from='current',
+                      models=None,              # models,
                       prnt=True,
                       plot=True)
 

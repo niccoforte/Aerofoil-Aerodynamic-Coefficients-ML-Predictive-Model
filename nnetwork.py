@@ -209,11 +209,13 @@ class Model:
         return trainEv, testEv, ev_df
 
     @classmethod
-    def predict(self, model, test_in, test_out, test_df):
+    def predict(self, _model, test_in, test_out, test_df):
         """Creates predictions on testing inputs using trained model.
 
         Parameters
         ----------
+        _model : keras.Sequential
+            Model with architecture and hyperparameters as defined in the build_MLP() function.
         test_in : numpy.array
             Inputs on which model makes predictions.
         test_out : numpy.array
@@ -232,7 +234,7 @@ class Model:
             drag, and L/D values.
         """
 
-        pred = model.predict(test_in)
+        pred = _model.predict(test_in)
 
         clp = [p[0] for p in pred]
         cdp = [p[1] for p in pred]
@@ -257,7 +259,7 @@ class Model:
         RMSE_cl = math.sqrt(MSE_cl)
         RMSE_cd = math.sqrt(MSE_cd)
         RMSE = math.sqrt(MSE)
-        Pmetrics_df = pd.DataFrame({'name': [str(model.name)],
+        Pmetrics_df = pd.DataFrame({'name': [str(_model.name)],
                                     'ACC_cl': [float(ACC_cl)], 'ACC_cd': [float(ACC_cd)], 'ACC': [float(ACC)],
                                     'MAE_cl': [float(MAE_cl)], 'MAE_cd': [float(MAE_cd)], 'MAE': [float(MAE)],
                                     'R2_cl': [float(R2_cl)], 'R2_cd': [float(R2_cd)],
@@ -340,7 +342,7 @@ def model_predict(_model, test_in, test_out, test_df):
 
     Parameters
     ----------
-    model : keras.Sequential
+    _model : keras.Sequential
         Model with architecture and hyperparameters as defined in the build_MLP() function.
     test_in : numpy.array
         Inputs on which model makes predictions.
@@ -362,27 +364,27 @@ def model_predict(_model, test_in, test_out, test_df):
 
     print('Predicting on testing data...')
 
-    pred, Pmetrics_df, output_df = Model.predict(model=_model, test_in=test_in, test_out=test_out, test_df=test_df)
+    pred, Pmetrics_df, output_df = Model.predict(_model=_model, test_in=test_in, test_out=test_out, test_df=test_df)
 
     print('-Done. Predictions made and metrics on predictions evaluated.')
     return pred, Pmetrics_df, output_df
 
 
-def pred_metrics(Pmetrics_df, models=None, df_from='current', prnt=False, plot=False):
+def pred_metrics(Pmetrics_df, models=None, prnt=False, plot=False):
     """Function to handle the prediction metrics in a variety of way depending by choice of parameters."""
 
     print("Extracting metrics on the model's predictions...")
 
-    if df_from == 'current':
-        print(' From current model...')
-        metrics_df = Pmetrics_df
-
-    elif df_from == 'models':
+    if models:
         print(' From model(s) in "models" dictionary...')
         metrics_df = pd.DataFrame()
         for name, model in models.items():
             new_row = model.Pmetrics_df
             metrics_df = pd.concat([metrics_df, new_row], ignore_index=True)
+
+    else:
+        print(' From current model...')
+        metrics_df = Pmetrics_df
 
     if prnt:
         print('  And printing metrics...')
@@ -438,20 +440,18 @@ def pred_metrics(Pmetrics_df, models=None, df_from='current', prnt=False, plot=F
     return
 
 
-def train_metrics(model, models, mets=['loss', 'ACC', 'MAE'], df_from='current', prnt=False, plot=False):
+def train_metrics(model, models, mets=['loss', 'ACC', 'MAE'], prnt=False, plot=False):
     """Function to handle the training metrics in a variety of way depending by choice of parameters."""
 
     print("Extracting metrics from the model's training...")
 
-    if df_from == 'current':
-        print(' From current model...')
-        models = {model.name: model}
-        fitHistory = model.fitHistory
-
-    elif df_from == 'models':
+    if models:
         print(' From model(s) in "models" dictionary...')
         models = models
-        fitHistory = [model.fitHistory for model in list(models.values())]
+
+    else:
+        print(' From current model...')
+        models = {model.name: model}
 
     if prnt:
         print('  And printing metrics...')
