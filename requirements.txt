@@ -1,9 +1,10 @@
-pandas~=2.0.1
+pandas~=2.3.3
 numpy~=1.26.4
-scipy~=1.10.1
-matplotlib~=3.7.1
+scipy~=1.17.1
+matplotlib~=3.10.9
 urllib3~=2.7.0
-beautifulsoup4~=4.12.2
+beautifulsoup4~=4.15.0
+lxml~=6.1.1
 tensorflow~=2.21.0
 keras~=3.14.1
 scikit-learn~=1.9.0

@@ -1,11 +1,12 @@
 import pandas as pd
 import os
-from tensorflow import keras
+import keras
 
 
 def save_model(_model):
     save_dir = f'models/{_model.name}'
-    _model.save(f'{save_dir}/model/')
+    os.makedirs(save_dir, exist_ok=True)
+    _model.save(f'{save_dir}/model.keras')
     return
 
 
@@ -58,7 +59,19 @@ def save_results(_model, output_df, Pmetrics_df, fitHistory_df, ev_df):
 
 
 def load_model(directory):
-    model = keras.models.load_model(f'{directory}/model')
+    model_path = f'{directory}/model.keras'
+    legacy_path = f'{directory}/model'
+
+    if os.path.exists(model_path):
+        model = keras.models.load_model(model_path)
+    elif os.path.isdir(legacy_path):
+        raise ValueError(
+            f'Found legacy TensorFlow SavedModel directory at {legacy_path}. '
+            'Keras 3 cannot load this format with keras.models.load_model(); '
+            'retrain and save the model again to create model.keras.'
+        )
+    else:
+        model = keras.models.load_model(legacy_path)
 
     return model
 

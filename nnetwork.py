@@ -4,13 +4,11 @@ import matplotlib.pyplot as plt
 import math
 import os
 
-import tensorflow as tf
-from tensorflow import keras
+import keras
 from keras import Sequential, optimizers
 from keras.layers import Dense, BatchNormalization, Activation, InputLayer, LeakyReLU, PReLU, Dropout
-from keras.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau
-from sklearn.metrics import r2_score
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 import aerofoils
 
@@ -138,14 +136,14 @@ class Model:
 
         model = Sequential(name=self.name)
 
-        model.add(InputLayer(input_shape=len(self.train_in[0])))
+        model.add(InputLayer(shape=(len(self.train_in[0]),)))
         model.add(BatchNormalization())
 
         for n in self.neurons[1]:
             model.add(Dense(self.neurons[0][n]))
 
             if self.activation == 'leakyrelu':
-                model.add(LeakyReLU(alpha=0.3))
+                model.add(LeakyReLU(negative_slope=0.3))
             elif self.activation == 'prelu':
                 model.add(PReLU(alpha_initializer='zeros'))
             else:
@@ -157,8 +155,17 @@ class Model:
         model.add(Dense(len(self.test_out[0])))
 
         OPT = optimizers.Adam(learning_rate=self.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
-        METS = ['ACC', 'MAE', 'MSE']
-        model.compile(optimizer=OPT, loss='MSE', metrics=METS, weighted_metrics=METS)  # , loss_weights=[1,2])
+        METS = [
+            keras.metrics.Accuracy(name='ACC'),
+            keras.metrics.MeanAbsoluteError(name='MAE'),
+            keras.metrics.MeanSquaredError(name='MSE'),
+        ]
+        weighted_METS = [
+            keras.metrics.Accuracy(name='weighted_ACC'),
+            keras.metrics.MeanAbsoluteError(name='weighted_MAE'),
+            keras.metrics.MeanSquaredError(name='weighted_MSE'),
+        ]
+        model.compile(optimizer=OPT, loss='mse', metrics=METS, weighted_metrics=weighted_METS)  # , loss_weights=[1,2])
 
         if self.verbose == 1:
             print(model.summary())
@@ -177,11 +184,10 @@ class Model:
         early_stop = EarlyStopping(monitor='val_loss', patience=10, verbose=self.verbose, mode='min')
         reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.25, patience=5, verbose=self.verbose,
                                       min_delta=1e-4, mode='min')
-        if self.callbacks:
-            self.callbacks = [reduce_lr]  # , early_stop]
+        callbacks = [reduce_lr] if self.callbacks else None  # , early_stop
 
         fitHistory = self.model.fit(self.train_in, self.train_out, epochs=self.EPOCHS, batch_size=self.BATCH,
-                                    validation_split=0.1, verbose=self.verbose, callbacks=self.callbacks,
+                                    validation_split=0.1, verbose=self.verbose, callbacks=callbacks,
                                     sample_weight=self.weights)  # , class_weight={0:1, 1:1.5})
 
         fitHistory_df = pd.DataFrame(fitHistory.history)
@@ -199,12 +205,12 @@ class Model:
             List of loss and metrics for trained model on training data.
         """
 
-        trainEv = self.model.evaluate(self.train_in, self.train_out, batch_size=self.BATCH)
-        testEv = self.model.evaluate(self.test_in, self.test_out, batch_size=self.BATCH)
+        trainEv_dict = self.model.evaluate(self.train_in, self.train_out, batch_size=self.BATCH, return_dict=True)
+        testEv_dict = self.model.evaluate(self.test_in, self.test_out, batch_size=self.BATCH, return_dict=True)
 
-        ev_df = pd.DataFrame(columns=list(self.fitHistory_df.columns[:7]))
-        ev_df.loc[0] = trainEv
-        ev_df.loc[1] = testEv
+        trainEv = list(trainEv_dict.values())
+        testEv = list(testEv_dict.values())
+        ev_df = pd.DataFrame([trainEv_dict, testEv_dict])
 
         return trainEv, testEv, ev_df
 
@@ -390,12 +396,12 @@ def pred_metrics(Pmetrics_df, models=None, prnt=False, plot=False):
         print('  And printing metrics...')
         print('   === PREDICTION METRICS ===')
         for index, row in metrics_df.iterrows():
-            print(f'    MODEL: {row[0]}.')
-            print(f'      ACC:  CL: {round(row[1], 6)} and CD: {round(row[2], 6)} and ALL: {round(row[3], 6)}.')
-            print(f'      MAE:  CL: {round(row[4], 6)} and CD: {round(row[5], 6)} and ALL: {round(row[6], 6)}.')
-            print(f'       R2:  CL: {round(row[7], 6)} and CD: {round(row[8], 6)}.')
-            print(f'      MSE:  CL: {round(row[9], 6)} and CD: {round(row[10], 6)} and ALL: {round(row[11], 6)}.')
-            print(f'     RMSE:  CL: {round(row[12], 6)} and CD: {round(row[13], 6)} and ALL: {round(row[14], 6)}.')
+            print(f'    MODEL: {row.iloc[0]}.')
+            print(f'      ACC:  CL: {round(row.iloc[1], 6)} and CD: {round(row.iloc[2], 6)} and ALL: {round(row.iloc[3], 6)}.')
+            print(f'      MAE:  CL: {round(row.iloc[4], 6)} and CD: {round(row.iloc[5], 6)} and ALL: {round(row.iloc[6], 6)}.')
+            print(f'       R2:  CL: {round(row.iloc[7], 6)} and CD: {round(row.iloc[8], 6)}.')
+            print(f'      MSE:  CL: {round(row.iloc[9], 6)} and CD: {round(row.iloc[10], 6)} and ALL: {round(row.iloc[11], 6)}.')
+            print(f'     RMSE:  CL: {round(row.iloc[12], 6)} and CD: {round(row.iloc[13], 6)} and ALL: {round(row.iloc[14], 6)}.')
 
     if plot:
         print('  And plotting metrics...')
