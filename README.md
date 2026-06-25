@@ -11,12 +11,12 @@ coefficient (`Cl`) and drag coefficient (`Cd`), across aerofoil geometries, angl
 numbers (`Re`). The model is a Keras multi-layer perceptron trained primarily on XFOIL/Airfoil Tools data, with support
 for limited experimental and Rennes datasets.
 
-The current codebase supports two ways of working:
+The project can be used in two ways:
 
 - `main.py` for a one-shot command-line training/evaluation/prediction run.
-- notebooks in `jupyter/` for iterative exploration while importing the same implementation used by the scripts.
+- notebooks in `jupyter/` for iterative exploration with the `resources` package.
 
-## Current Structure
+## Repository Structure
 
 ```text
 .
@@ -27,24 +27,17 @@ The current codebase supports two ways of working:
 |   |-- data.py              # DataFrame merging, train/test split, NN input/output preparation
 |   |-- nnetwork.py          # Keras model, metrics, prediction plotting
 |   `-- saved.py             # Keras model and result persistence helpers
-|-- aerofoils.py             # Backwards-compatible wrapper for resources.aerofoils
-|-- cases.py                 # Backwards-compatible wrapper for resources.cases
-|-- data.py                  # Backwards-compatible wrapper for resources.data
-|-- nnetwork.py              # Backwards-compatible wrapper for resources.nnetwork
-|-- saved.py                 # Backwards-compatible wrapper for resources.saved
-|-- jupyter/                 # Notebook front-ends that import resources/
+|-- jupyter/                 # Notebook interfaces that import resources/
 |-- dat/                     # Bundled raw aerofoil/case data
 |-- dat-saved/               # Preprocessed case DataFrames
-|-- scripts/smoke_check.py   # Lightweight repository checks
 `-- requirements.txt         # Python dependencies
 ```
 
-The `resources/` package is now the source of truth. The top-level module files remain so older imports such as
-`import saved` still work, but new code should import from `resources`.
+Project modules live in `resources/`. Scripts and notebooks import directly from this package.
 
 ## Installation
 
-Use Python 3.11 or 3.12 with the current dependency stack. A virtual environment is recommended.
+Use Python 3.11 or 3.12 with the dependency stack. A virtual environment is recommended.
 
 On Windows PowerShell:
 
@@ -66,22 +59,6 @@ python -m pip install -r requirements.txt
 
 The main dependencies are Pandas, NumPy, SciPy, Matplotlib, BeautifulSoup/lxml, scikit-learn, TensorFlow, and Keras.
 Keras 3 is used, so saved models are written as `.keras` files.
-
-## Smoke Checks
-
-After installing Python, run the lightweight repository check from the repo root:
-
-```bash
-python scripts/smoke_check.py
-```
-
-After installing dependencies, you can also verify imports:
-
-```bash
-python scripts/smoke_check.py --imports
-```
-
-These checks validate repository structure and notebook JSON. They are not a full training test.
 
 ## Running The Workflow
 
@@ -125,19 +102,19 @@ Useful CLI options:
 | `--verbose` | Keras verbosity level. |
 | `--no-callbacks` | Disable training callbacks. |
 
-If the requested prediction target is not present in the current test split, the plotting helper falls back to an
+If the requested prediction target is not present in the selected test split, the plotting helper falls back to an
 available aerofoil/Re pair and prints a warning.
 
 ## Data
 
-The repository currently tracks the `dat/` folder intentionally. It contains 11,034 raw data files, about 49 MB, covering:
+The repository tracks the `dat/` directory intentionally. It contains 11,034 raw data files, about 49 MB, covering:
 
 - UIUC aerofoil coordinate `.dat` files.
 - Airfoil Tools aerofoil coordinate and XFOIL coefficient files.
 - Rennes aerofoil/coefficient files.
 - Experimental coefficient CSVs digitised or adapted from literature sources.
 
-The `dat-saved/` folder contains preprocessed case DataFrames used by the default workflow. Running with `--reset`
+The `dat-saved/` directory contains preprocessed case DataFrames used by the training workflow. Running with `--reset`
 rebuilds these files from raw/downloaded data and overwrites the saved CSVs.
 
 The download helpers depend on third-party sites. If those sites change their HTML or file layout, `--reset` may need
@@ -163,19 +140,19 @@ models/
         `-- evaluate.csv
 ```
 
-Models are saved in Keras 3 `.keras` format. Legacy TensorFlow SavedModel directories cannot be loaded with
-`keras.models.load_model()` in this dependency stack; retrain and save again to create `model.keras`.
+Models are saved in Keras 3 `.keras` format. `resources.saved.load_model()` expects a `model.keras` file inside the
+selected model directory.
 
 ## Notebook Workflow
 
-The notebooks in `jupyter/` are exploration/demo front-ends. They import the same modules used by `main.py`.
+The notebooks in `jupyter/` are exploration/demo interfaces. They import project modules from `resources`.
 
 Use notebooks when you want to inspect intermediate DataFrames, rerun selected steps, or experiment with plotting/model
 settings. Use `main.py` when you want a reproducible one-shot execution.
 
 ## Known Limitations
 
-- This is a dissertation-era MLP workflow, not a production aerodynamic solver.
+- This is a research MLP workflow, not a production aerodynamic solver.
 - Predictions depend on the training data distribution and the selected aerofoil/Re/AoA coverage.
 - Some raw data is sourced from third-party websites and may become unavailable or change format over time.
 

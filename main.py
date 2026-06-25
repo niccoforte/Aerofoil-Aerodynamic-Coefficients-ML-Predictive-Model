@@ -34,7 +34,7 @@ def set_up(_reset=False, _ren=False):
     Parameters
     ----------
     _reset : bool, default False
-        If True checks for new files to download from online databases to 'dat/' directories, creates case DataFrames
+        If True checks for missing files to download from online databases to 'dat/' directories, creates case DataFrames
         from scratch, and saves them by overwriting files in 'dat-saved/' directory. Otherwise uses files already
         present in these directories.
     _ren : bool, default False

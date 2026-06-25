@@ -12,10 +12,7 @@ def save_model(_model):
 
 
 def _read_saved_csv(path):
-    df = pd.read_csv(path)
-    if 'Unnamed: 0' in df.columns:
-        df = df.drop(columns=['Unnamed: 0'])
-    return df
+    return pd.read_csv(path)
 
 
 def _prediction_label(output_df):
@@ -97,16 +94,9 @@ def save_results(_model, output_df, Pmetrics_df, fitHistory_df, ev_df):
 def load_model(directory):
     directory = Path(directory)
     model_path = directory / 'model.keras'
-    legacy_path = directory / 'model'
 
     if model_path.exists():
         model = keras.models.load_model(str(model_path))
-    elif legacy_path.is_dir():
-        raise ValueError(
-            f'Found legacy TensorFlow SavedModel directory at {legacy_path}. '
-            'Keras 3 cannot load this format with keras.models.load_model(); '
-            'retrain and save the model again to create model.keras.'
-        )
     else:
         raise FileNotFoundError(
             f'No Keras model file found at {model_path}. Expected a Keras 3 .keras model file.'
@@ -126,7 +116,3 @@ def load_results(directory, pred):
     ev_df = _read_saved_csv(directory / 'evaluation' / 'evaluate.csv')
 
     return output_df, Pmetrics_df, fitHistory_df, ev_df
-
-
-# TODO: Add and finish docstrings
-# TODO: Add to ReadMe
