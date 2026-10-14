@@ -60,6 +60,10 @@ python -m pip install -r requirements.txt
 The main dependencies are Pandas, NumPy, SciPy, Matplotlib, BeautifulSoup/lxml, scikit-learn, TensorFlow, and Keras.
 Keras 3 is used, so saved models are written as `.keras` files.
 
+urllib3 requires the patched 2.8.x series for safe chunked-response streaming.
+When refreshing an existing environment, reinstall `requirements.txt` to apply
+the security update.
+
 ## Running The Workflow
 
 Run the default one-shot workflow:
