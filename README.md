@@ -37,7 +37,26 @@ Project modules live in `resources/`. Scripts and notebooks import directly from
 
 ## Installation
 
-Use Python 3.11 or 3.12 with the dependency stack. A virtual environment is recommended.
+Use Python 3.12 with the dependency stack. Keep this project's packages separate from other research projects.
+
+On macOS with Miniforge:
+
+```bash
+bash setup-macOS.sh
+conda activate nf-beng
+python check-environment.py
+```
+
+The setup script creates or refreshes only `nf-beng`, installs `requirements.txt`, checks dependencies and imports,
+and does not modify `base` or `nf-phd`. Set `CONDA_ROOT` if Miniforge is not installed at `$HOME/miniforge3`.
+In VS Code select `nf-beng` as the Python interpreter and `Python (nf-beng)` as the notebook kernel.
+The setup script registers this user-level Jupyter kernel; `ipykernel` is included.
+The offline check runs one training epoch with a small network on bundled data and verifies prediction, metrics
+and a `.keras` save/load round trip. Its outputs are temporary; it does not download or overwrite research data.
+
+Intel macOS uses TensorFlow 2.16.2, the final supported Intel-Mac release, selected by a platform marker in
+`requirements.txt`. Other platforms retain TensorFlow 2.21. Keras 3 remains the project API on both paths.
+See [TensorFlow's platform support](https://www.tensorflow.org/install/pip).
 
 On Windows PowerShell:
 
@@ -48,7 +67,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-On macOS/Linux:
+Alternatively, on Linux or macOS without Conda:
 
 ```bash
 python -m venv .venv
@@ -147,6 +166,20 @@ models/
 Models are saved in Keras 3 `.keras` format. `resources.saved.load_model()` expects a `model.keras` file inside the
 selected model directory.
 
+An optional, ignored archive under `results/models/` contains an older TensorFlow SavedModel. Keep it unchanged:
+it is not a `.keras` file. Inference remains available in `nf-beng` through TensorFlow's SavedModel API:
+
+```python
+import tensorflow as tf
+archived = tf.saved_model.load("results/models/MLP-Sigmoid/model")
+predict = archived.signatures["serving_default"]
+# inputs: float32 [batch, 104], using the archived feature order and preprocessing
+outputs = predict(input_1=tf.convert_to_tensor(inputs, dtype=tf.float32))["dense_4"]
+```
+
+This is an inference interface, not a Keras 3 training-model conversion. The archive's run provenance is described
+in its local `results/README.md`; historical training seeds and a complete original dependency lock are unavailable.
+
 ## Notebook Workflow
 
 The notebooks in `jupyter/` are exploration/demo interfaces. They import project modules from `resources`.
@@ -159,6 +192,12 @@ settings. Use `main.py` when you want a reproducible one-shot execution.
 - This is a research MLP workflow, not a production aerodynamic solver.
 - Predictions depend on the training data distribution and the selected aerofoil/Re/AoA coverage.
 - Some raw data is sourced from third-party websites and may become unavailable or change format over time.
+
+## Repository Maintenance
+
+After validation, commit and push completed repository changes and verify that
+the remote branch matches the local commit. Include intended new project files;
+keep generated models and temporary test outputs outside version control.
 
 ## Citation And License
 

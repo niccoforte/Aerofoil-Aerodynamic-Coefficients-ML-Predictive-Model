@@ -5,6 +5,9 @@ matplotlib~=3.10.9
 urllib3~=2.8.0
 beautifulsoup4~=4.15.0
 lxml~=6.1.1
-tensorflow~=2.21.0
+# TensorFlow 2.16 is the final release for Intel macOS.
+tensorflow==2.16.2; sys_platform == "darwin" and platform_machine == "x86_64"
+tensorflow~=2.21.0; sys_platform != "darwin" or platform_machine != "x86_64"
 keras~=3.15.0
 scikit-learn~=1.9.0
+ipykernel>=6,<8

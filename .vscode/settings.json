@@ -1,0 +1,3 @@
+{
+    "python.defaultInterpreterPath": "${env:HOME}/miniforge3/envs/nf-beng/bin/python"
+}
